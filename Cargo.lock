@@ -440,6 +440,7 @@ name = "mosaic-core"
 version = "0.1.0"
 dependencies = [
  "base64",
+ "bitflags",
  "ed25519-dalek",
  "futures",
  "http",

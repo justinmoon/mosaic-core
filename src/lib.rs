@@ -12,3 +12,6 @@ mod server_bootstrap;
 pub use server_bootstrap::ServerBootstrap;
 
 mod uri;
+
+mod user_bootstrap;
+pub use user_bootstrap::UserBootstrap;
