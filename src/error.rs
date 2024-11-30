@@ -4,19 +4,25 @@ use std::error::Error as StdError;
 /// A Mosaic error
 #[derive(Debug)]
 pub enum Error {
+    BadScheme(String),
     Base64(base64::DecodeError),
     Ed25519(ed25519_dalek::ed25519::Error),
     KeyLength,
     General(String),
+    InvalidUriParts(http::uri::InvalidUriParts),
+    MissingScheme,
 }
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Error::BadScheme(s) => write!(f, "Unsupported scheme: {s}"),
             Error::Base64(e) => write!(f, "Base64 decode error: {e}"),
             Error::Ed25519(e) => write!(f, "ed25519 Error: {e}"),
             Error::KeyLength => write!(f, "Data length is not 32 bytes"),
             Error::General(s) => write!(f, "General Error: {s}"),
+            Error::InvalidUriParts(e) => write!(f, "Invalid URI parts: {e}"),
+            Error::MissingScheme => write!(f, "Missing scheme"),
         }
     }
 }
@@ -26,6 +32,7 @@ impl StdError for Error {
         match self {
             Error::Base64(e) => Some(e),
             Error::Ed25519(e) => Some(e),
+            Error::InvalidUriParts(e) => Some(e),
             _ => None,
         }
     }
@@ -58,5 +65,11 @@ impl From<base64::DecodeError> for Error {
 impl From<ed25519_dalek::ed25519::Error> for Error {
     fn from(e: ed25519_dalek::ed25519::Error) -> Error {
         Error::Ed25519(e)
+    }
+}
+
+impl From<http::uri::InvalidUriParts> for Error {
+    fn from(e: http::uri::InvalidUriParts) -> Error {
+        Error::InvalidUriParts(e)
     }
 }
