@@ -15,6 +15,9 @@ pub use keys::{PrivateKey, PublicKey};
 mod server_bootstrap;
 pub use server_bootstrap::ServerBootstrap;
 
+mod timestamp;
+pub use timestamp::Timestamp;
+
 mod uri;
 
 mod user_bootstrap;

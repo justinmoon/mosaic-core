@@ -16,5 +16,9 @@ mainline = { version = "4.1", features = [ "async" ] }
 rand = "0.8"
 rand_core = "0.6"
 
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+instant = { version = "0.1", features = ["wasm-bindgen", "inaccurate"] }
+getrandom = { version = "0.2", features = [ "js" ] }
+
 [dev-dependencies]
 tokio = { version = "1", features = [ "full" ] }

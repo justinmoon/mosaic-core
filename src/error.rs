@@ -16,6 +16,9 @@ pub enum Error {
     InvalidUri(http::uri::InvalidUri),
     InvalidUriParts(http::uri::InvalidUriParts),
     MissingScheme,
+    SystemTime(std::time::SystemTimeError),
+    TimeIsBeyondLeapSecondData,
+    TimeOutOfRange,
     Utf8(std::str::Utf8Error),
 }
 
@@ -34,6 +37,11 @@ impl std::fmt::Display for Error {
             Error::InvalidUri(e) => write!(f, "Invalid URI: {e}"),
             Error::InvalidUriParts(e) => write!(f, "Invalid URI parts: {e}"),
             Error::MissingScheme => write!(f, "Missing scheme"),
+            Error::SystemTime(e) => write!(f, "Time Error: {e}"),
+            Error::TimeIsBeyondLeapSecondData => {
+                write!(f, "Time is beyond available leap second data")
+            }
+            Error::TimeOutOfRange => write!(f, "Time is out of range"),
             Error::Utf8(e) => write!(f, "UTF-8 error: {e}"),
         }
     }
@@ -46,6 +54,7 @@ impl StdError for Error {
             Error::Ed25519(e) => Some(e),
             Error::InvalidUri(e) => Some(e),
             Error::InvalidUriParts(e) => Some(e),
+            Error::SystemTime(e) => Some(e),
             Error::Utf8(e) => Some(e),
             _ => None,
         }
@@ -91,6 +100,12 @@ impl From<http::uri::InvalidUri> for Error {
 impl From<http::uri::InvalidUriParts> for Error {
     fn from(e: http::uri::InvalidUriParts) -> Error {
         Error::InvalidUriParts(e)
+    }
+}
+
+impl From<std::time::SystemTimeError> for Error {
+    fn from(e: std::time::SystemTimeError) -> Error {
+        Error::SystemTime(e)
     }
 }
 
