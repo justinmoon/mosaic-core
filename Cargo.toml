@@ -9,7 +9,9 @@ edition = "2021"
 [dependencies]
 base64 = "0.22"
 bitflags = "2.6"
-ed25519-dalek = { version = "2.1", features = [ "rand_core" ] }
+blake3 = "1.5"
+digest = "0.10"
+ed25519-dalek = { version = "2.1", features = [ "rand_core", "digest" ] }
 futures = "0.3"
 http = "1.1"
 mainline = { version = "4.1", features = [ "async" ] }

@@ -12,6 +12,9 @@ pub use error::Error;
 mod keys;
 pub use keys::{PrivateKey, PublicKey};
 
+mod record;
+pub use record::Record;
+
 mod server_bootstrap;
 pub use server_bootstrap::ServerBootstrap;
 

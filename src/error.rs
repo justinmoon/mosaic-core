@@ -16,6 +16,7 @@ pub enum Error {
     InvalidUri(http::uri::InvalidUri),
     InvalidUriParts(http::uri::InvalidUriParts),
     MissingScheme,
+    RecordTooLong,
     SystemTime(std::time::SystemTimeError),
     TimeIsBeyondLeapSecondData,
     TimeOutOfRange,
@@ -37,6 +38,7 @@ impl std::fmt::Display for Error {
             Error::InvalidUri(e) => write!(f, "Invalid URI: {e}"),
             Error::InvalidUriParts(e) => write!(f, "Invalid URI parts: {e}"),
             Error::MissingScheme => write!(f, "Missing scheme"),
+            Error::RecordTooLong => write!(f, "Record too long"),
             Error::SystemTime(e) => write!(f, "Time Error: {e}"),
             Error::TimeIsBeyondLeapSecondData => {
                 write!(f, "Time is beyond available leap second data")
