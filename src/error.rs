@@ -6,6 +6,7 @@ use std::error::Error as StdError;
 pub enum Error {
     Base64(base64::DecodeError),
     Ed25519(ed25519_dalek::ed25519::Error),
+    KeyLength,
     General(String),
 }
 
@@ -14,6 +15,7 @@ impl std::fmt::Display for Error {
         match self {
             Error::Base64(e) => write!(f, "Base64 decode error: {e}"),
             Error::Ed25519(e) => write!(f, "ed25519 Error: {e}"),
+            Error::KeyLength => write!(f, "Data length is not 32 bytes"),
             Error::General(s) => write!(f, "General Error: {s}"),
         }
     }
@@ -36,7 +38,7 @@ impl From<Infallible> for Error {
 }
 
 impl From<()> for Error {
-    fn from(_: ()) -> Self {
+    fn from((): ()) -> Self {
         Error::General("Error".to_owned())
     }
 }
