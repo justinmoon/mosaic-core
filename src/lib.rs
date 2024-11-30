@@ -8,4 +8,7 @@ pub use error::Error;
 mod keys;
 pub use keys::{PrivateKey, PublicKey};
 
+mod server_bootstrap;
+pub use server_bootstrap::ServerBootstrap;
+
 mod uri;
