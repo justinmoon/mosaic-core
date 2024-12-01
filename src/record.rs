@@ -40,7 +40,8 @@ impl Record {
         Ok(unverified)
     }
 
-    /// Verify invariants
+    /// Verify invariants. You should not normally need to call this; all code paths
+    /// that instantiate a `Record` object call this.
     ///
     /// # Errors
     ///
@@ -103,8 +104,9 @@ impl Record {
         Ok(())
     }
 
-    /// Create a new `Record` from component parts,
-    /// at the current time, with a new address.
+    /// Create a new `Record` from component parts.
+    ///
+    /// Creates a new unique address.
     ///
     /// # Errors
     ///
@@ -115,6 +117,37 @@ impl Record {
         master_public_key: PublicKey,
         signing_private_key: &PrivateKey,
         application_id: u32,
+        timestamp: Timestamp,
+        flags: u16,
+        tag_bytes: &[u8],
+        payload: &[u8],
+    ) -> Result<Record, Error> {
+        let mut address: [u8; 48] = [0; 48];
+
+        address[ADDR_AUTHOR_KEY_RANGE].copy_from_slice(master_public_key.as_bytes().as_slice());
+
+        address[ADDR_TIMESTAMP_RANGE].copy_from_slice(timestamp.to_slice().as_slice());
+
+        let mut nonce: [u8; 6] = [0; 6];
+        OsRng.fill_bytes(&mut nonce);
+        address[ADDR_NONCE_RANGE].copy_from_slice(nonce.as_slice());
+
+        address[ADDR_APP_ID_RANGE].copy_from_slice(application_id.to_le_bytes().as_slice());
+
+        Self::new_replacement(&address, signing_private_key, tag_bytes, payload, flags)
+    }
+
+    /// Create a new `Record` from component parts, replacing an existing record
+    /// at the same address
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Err` if any data is too long, if reserved flags are set,
+    /// or if signing fails.
+    #[allow(clippy::missing_panics_doc)]
+    pub fn new_replacement(
+        address: &[u8; 48],
+        signing_private_key: &PrivateKey,
         tag_bytes: &[u8],
         payload: &[u8],
         flags: u16,
@@ -154,16 +187,7 @@ impl Record {
         #[allow(clippy::cast_possible_truncation)]
         bytes[LEN_T_RANGE].copy_from_slice((tags_wordlen as u16).to_le_bytes().as_slice());
 
-        bytes[APP_ID_RANGE].copy_from_slice(application_id.to_le_bytes().as_slice());
-
-        let mut nonce: [u8; 6] = [0; 6];
-        OsRng.fill_bytes(&mut nonce);
-        bytes[NONCE_RANGE].copy_from_slice(nonce.as_slice());
-
-        let timestamp = Timestamp::now().unwrap();
-        bytes[TIMESTAMP_RANGE].copy_from_slice(timestamp.to_slice().as_slice());
-
-        bytes[AUTHOR_KEY_RANGE].copy_from_slice(master_public_key.as_bytes().as_slice());
+        bytes[ADDRESS_RANGE].copy_from_slice(address);
 
         let public_key = signing_private_key.public();
         bytes[SIGNING_KEY_RANGE].copy_from_slice(public_key.as_bytes().as_slice());
@@ -227,7 +251,7 @@ impl Record {
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
     pub fn timestamp(&self) -> Timestamp {
-        Timestamp::from_slice(self.0[160..166].try_into().unwrap()).unwrap()
+        Timestamp::from_slice(self.0[TIMESTAMP_RANGE].try_into().unwrap()).unwrap()
     }
 
     /// Application ID
@@ -241,7 +265,7 @@ impl Record {
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
     pub fn address(&self) -> &[u8; 48] {
-        self.0[160..208].try_into().unwrap()
+        self.0[ADDRESS_RANGE].try_into().unwrap()
     }
 
     /// Flags
@@ -300,9 +324,10 @@ mod test {
             master_public_key,
             &signing_private_key,
             1,
+            Timestamp::now().unwrap(),
+            0,
             b"",
             b"hello world",
-            0,
         )
         .unwrap();
 
@@ -319,9 +344,10 @@ mod test {
 const SIG_RANGE: Range<usize> = 0..64;
 const HASH_RANGE: Range<usize> = 64..128;
 const SIGNING_KEY_RANGE: Range<usize> = 128..160;
+const ADDRESS_RANGE: Range<usize> = 160..208;
 const AUTHOR_KEY_RANGE: Range<usize> = 160..192;
 const TIMESTAMP_RANGE: Range<usize> = 192..198;
-const NONCE_RANGE: Range<usize> = 198..204;
+//const NONCE_RANGE: Range<usize> = 198..204;
 const APP_ID_RANGE: Range<usize> = 204..208;
 const LEN_T_RANGE: Range<usize> = 208..210;
 const LEN_P_RANGE: Range<usize> = 210..212;
@@ -329,3 +355,9 @@ const FLAGS_RANGE: Range<usize> = 212..214;
 const RESERVED_RANGE: Range<usize> = 214..216;
 const HEADER_LEN: usize = 216;
 const HASHABLE_RANGE: RangeFrom<usize> = 128..;
+
+#[allow(clippy::eq_op)]
+const ADDR_AUTHOR_KEY_RANGE: Range<usize> = 160 - 160..192 - 160;
+const ADDR_TIMESTAMP_RANGE: Range<usize> = 192 - 160..198 - 160;
+const ADDR_NONCE_RANGE: Range<usize> = 198 - 160..204 - 160;
+const ADDR_APP_ID_RANGE: Range<usize> = 204 - 160..208 - 160;
