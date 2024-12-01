@@ -20,6 +20,8 @@ impl PublicKey {
     /// Will return `Err` if the bytes do not represent a `CompressedEdwardsY` point on the curve.
     /// (not all bit sequences do)
     pub fn from_bytes(bytes: &[u8; 32]) -> Result<PublicKey, Error> {
+        // FIXME - verify this is a CompressedEdwardsY on the curve
+        // see ed25519-dalek docs
         Ok(PublicKey(VerifyingKey::from_bytes(bytes)?))
     }
 

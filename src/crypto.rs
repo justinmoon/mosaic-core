@@ -1,6 +1,6 @@
-use digest::{FixedOutput, HashMarker, OutputSizeUser, Reset, Update};
-use digest::generic_array::GenericArray;
 use digest::generic_array::typenum::U64;
+use digest::generic_array::GenericArray;
+use digest::{FixedOutput, HashMarker, OutputSizeUser, Reset, Update};
 
 /// This is a Blake3 Hasher implementing the traits required for use in
 /// the ed25519 construction in place of SHA-512
@@ -43,4 +43,4 @@ impl OutputSizeUser for Blake3 {
     type OutputSize = U64;
 }
 
-impl HashMarker for Blake3  { }
+impl HashMarker for Blake3 {}
