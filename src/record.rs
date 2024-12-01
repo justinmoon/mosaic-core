@@ -41,7 +41,7 @@ impl Record {
             return Err(Error::RecordTooLong);
         }
 
-        let len = 184 + tag_bytes.len() + payload.len();
+        let len = 216 + tag_bytes.len() + payload.len();
         if len > 1_048_576 {
             return Err(Error::RecordTooLong);
         }
@@ -49,42 +49,43 @@ impl Record {
         let mut bytes = Vec::with_capacity(len);
         bytes.resize(len, 0);
 
-        let tag_end = 184 + tag_bytes.len();
+        let tag_end = 216 + tag_bytes.len();
 
         bytes[tag_end..len].copy_from_slice(payload);
 
-        bytes[184..tag_end].copy_from_slice(tag_bytes);
+        bytes[216..tag_end].copy_from_slice(tag_bytes);
 
-        bytes[180..182].copy_from_slice(flags.to_le_bytes().as_slice());
+        bytes[212..214].copy_from_slice(flags.to_le_bytes().as_slice());
 
-        bytes[178..180].copy_from_slice(
+        bytes[210..212].copy_from_slice(
             ((payload.len() / 8) as u16).to_le_bytes().as_slice());
 
-        bytes[176..178].copy_from_slice(
+        bytes[208..210].copy_from_slice(
             ((tag_bytes.len() / 8) as u16).to_le_bytes().as_slice());
 
-        bytes[172..176].copy_from_slice(application_id.to_le_bytes().as_slice());
+        bytes[204..208].copy_from_slice(application_id.to_le_bytes().as_slice());
 
         let mut nonce: [u8; 6] = [0; 6];
         OsRng.fill_bytes(&mut nonce);
-        bytes[166..172].copy_from_slice(nonce.as_slice());
+        bytes[198..204].copy_from_slice(nonce.as_slice());
 
         let timestamp = Timestamp::now().unwrap();
-        bytes[160..166].copy_from_slice(timestamp.to_slice().as_slice());
+        bytes[192..198].copy_from_slice(timestamp.to_slice().as_slice());
 
-        bytes[128..160].copy_from_slice(master_public_key.as_bytes().as_slice());
+        bytes[160..192].copy_from_slice(master_public_key.as_bytes().as_slice());
 
         let public_key = signing_private_key.public();
-        bytes[96..128].copy_from_slice(public_key.as_bytes().as_slice());
+        bytes[128..160].copy_from_slice(public_key.as_bytes().as_slice());
 
         let mut hasher = blake3::Hasher::new();
-        hasher.update(&bytes[96..len]);
-        let hash = hasher.finalize();
+        hasher.update(&bytes[128..len]);
+        hasher.finalize_xof().fill(&mut bytes[64..128]);
 
-        bytes[64..96].copy_from_slice(hash.as_bytes().as_slice());
-
-        use ed25519_dalek::Signer;
-        let sig = signing_private_key.0.sign(&bytes[64..128]);
+        let digest = crate::crypto::Blake3 { h: hasher };
+        let sig = signing_private_key.0.sign_prehashed(
+            digest,
+            Some(b"Mosaic")
+        )?;
         bytes[0..64].copy_from_slice(sig.to_bytes().as_slice());
 
         Ok(Record(bytes))

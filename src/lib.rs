@@ -6,6 +6,8 @@ pub use ed25519_dalek;
 pub use mainline;
 pub use rand;
 
+mod crypto;
+
 mod error;
 pub use error::Error;
 
