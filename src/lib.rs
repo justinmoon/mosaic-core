@@ -26,6 +26,9 @@ pub use record_flags::RecordFlags;
 mod server_bootstrap;
 pub use server_bootstrap::ServerBootstrap;
 
+mod tag_type;
+pub use tag_type::TagType;
+
 mod timestamp;
 pub use timestamp::Timestamp;
 
