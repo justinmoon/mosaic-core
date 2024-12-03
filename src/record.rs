@@ -15,13 +15,13 @@ FIXME - maybe full_hash() vs id() which is just the first half
 /// stored in and retrieved from a server, and used by an application,
 //
 // INVARIANTS:
-//   at least 216 bytes long
+//   at least 192 bytes long
 //   no more than 1048576 bytes long
 //   hash is correct
 //   signature is correct
 //   reserved flags are zero
 //   reserved areas are zero
-//   216 + len_t*8 + len_p*8 == self.0.len()
+//   192 + tags_padded_len() + payload_padded_len() == self.0.len()
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Record(Vec<u8>);
 
@@ -67,7 +67,7 @@ impl Record {
         if self.0.len() < HEADER_LEN {
             return Err(Error::RecordTooShort);
         }
-        if HEADER_LEN + self.tags_len() + self.payload_len() != self.0.len() {
+        if HEADER_LEN + self.tags_padded_len() + self.payload_padded_len() != self.0.len() {
             return Err(Error::RecordSectionLengthMismatch);
         }
 
@@ -78,7 +78,7 @@ impl Record {
             PublicKey::from_bytes(self.0[AUTHOR_KEY_RANGE].try_into().unwrap())?;
 
         // Compute the true hash
-        let mut truehash: [u8; 64] = [0; 64];
+        let mut truehash: [u8; 32] = [0; 32];
         let mut hasher = blake3::Hasher::new();
         hasher.update(&self.0[HASHABLE_RANGE]);
         hasher.finalize_xof().fill(&mut truehash[..]);
@@ -105,7 +105,10 @@ impl Record {
         }
 
         // Verify reserved space is 0
-        if self.0[RESERVED_RANGE] != [0, 0] {
+        if self.0[RESERVED1_RANGE] != [0, 0] {
+            return Err(Error::ReservedSpaceUsed);
+        }
+        if self.0[RESERVED2_RANGE] != [0, 0, 0, 0, 0, 0] {
             return Err(Error::ReservedSpaceUsed);
         }
 
@@ -140,7 +143,7 @@ impl Record {
         OsRng.fill_bytes(&mut nonce);
         address[ADDR_NONCE_RANGE].copy_from_slice(nonce.as_slice());
 
-        address[ADDR_APP_ID_RANGE].copy_from_slice(application_id.to_le_bytes().as_slice());
+        address[ADDR_KIND_RANGE].copy_from_slice(application_id.to_le_bytes().as_slice());
 
         Self::new_replacement(&address, signing_private_key, tag_bytes, payload, flags)
     }
@@ -160,17 +163,17 @@ impl Record {
         payload: &[u8],
         flags: u16,
     ) -> Result<Record, Error> {
-        if payload.len() > 524_288 {
+        if payload.len() > MAX_PAYLOAD_LEN {
             return Err(Error::RecordTooLong);
         }
-        if tag_bytes.len() > 524_288 {
+	if tag_bytes.len() > 65_536 {
             return Err(Error::RecordTooLong);
-        }
+	}
 
-        let payload_wordlen = (payload.len() + 7) >> 3;
-        let tags_wordlen = (tag_bytes.len() + 7) >> 3;
+        let payload_padded_len = (payload.len() + 7) & !7;
+        let tags_padded_len = (tag_bytes.len() + 7) & !7;
 
-        let len = HEADER_LEN + tags_wordlen * 8 + payload_wordlen * 8;
+        let len = HEADER_LEN + payload_padded_len + tags_padded_len;
         if len > 1_048_576 {
             return Err(Error::RecordTooLong);
         }
@@ -181,7 +184,7 @@ impl Record {
 
         let mut bytes = vec![0; len];
 
-        let tag_end = HEADER_LEN + tags_wordlen * 8;
+        let tag_end = HEADER_LEN + tags_padded_len as usize;
 
         bytes[tag_end..tag_end + payload.len()].copy_from_slice(payload);
 
@@ -190,10 +193,12 @@ impl Record {
         bytes[FLAGS_RANGE].copy_from_slice(flags.to_le_bytes().as_slice());
 
         #[allow(clippy::cast_possible_truncation)]
-        bytes[LEN_P_RANGE].copy_from_slice((payload_wordlen as u16).to_le_bytes().as_slice());
+	let payload_len = payload.len() as u32;
+        bytes[LEN_P_RANGE].copy_from_slice(payload_len.to_le_bytes().as_slice());
 
         #[allow(clippy::cast_possible_truncation)]
-        bytes[LEN_T_RANGE].copy_from_slice((tags_wordlen as u16).to_le_bytes().as_slice());
+	let tags_len = tag_bytes.len() as u16;
+        bytes[LEN_T_RANGE].copy_from_slice(tags_len.to_le_bytes().as_slice());
 
         bytes[ADDRESS_RANGE].copy_from_slice(address);
 
@@ -203,7 +208,6 @@ impl Record {
         let mut hasher = blake3::Hasher::new();
         hasher.update(&bytes[HASHABLE_RANGE]);
         hasher.finalize_xof().fill(&mut bytes[HASH_RANGE]);
-
         let digest = crate::crypto::Blake3 { h: hasher };
         let sig = signing_private_key
             .0
@@ -215,8 +219,6 @@ impl Record {
         if cfg!(debug_assertions) {
             record.verify()?;
         }
-
-        // FIXME - if flags specify ZSTD we must compress the payload
 
         Ok(record)
     }
@@ -266,7 +268,7 @@ impl Record {
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
     pub fn application_id(&self) -> u32 {
-        u32::from_le_bytes(self.0[APP_ID_RANGE].try_into().unwrap())
+        u32::from_le_bytes(self.0[KIND_RANGE].try_into().unwrap())
     }
 
     /// Address
@@ -287,10 +289,16 @@ impl Record {
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
     pub fn tags_len(&self) -> usize {
-        let len_t = u16::from_le_bytes(self.0[LEN_T_RANGE].try_into().unwrap()) as usize;
-        len_t * 8
+        u16::from_le_bytes(self.0[LEN_T_RANGE].try_into().unwrap()) as usize
     }
 
+    /// Tags padded length
+    #[allow(clippy::missing_panics_doc)]
+    #[must_use]
+    pub fn tags_padded_len(&self) -> usize {
+	(self.tags_len() + 7) & !7
+    }
+    
     /// Tag bytes
     #[must_use]
     pub fn tags_bytes(&self) -> &[u8] {
@@ -301,22 +309,62 @@ impl Record {
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
     pub fn payload_len(&self) -> usize {
-        let len_p = u16::from_le_bytes(self.0[LEN_P_RANGE].try_into().unwrap()) as usize;
-        len_p * 8
+        u32::from_le_bytes(self.0[LEN_P_RANGE].try_into().unwrap()) as usize
     }
 
-    /// Payload bytes
+    /// Tags padded length
+    #[allow(clippy::missing_panics_doc)]
     #[must_use]
-    pub fn payload_bytes(&self) -> &[u8] {
-        // FIXME if tags specify ZSTD, we must decompress the payload
-
-        &self.0[HEADER_LEN + self.tags_len()..]
+    pub fn payload_padded_len(&self) -> usize {
+	(self.payload_len() + 7) & !7
+    }
+    
+    /// Payload bytes
+    /// 
+    /// These are the raw bytes. If Zstd is used, the caller is responsible for
+    /// decompressing them.
+    #[must_use]
+    pub fn payload_bytes_raw(&self) -> &[u8] {
+	let start = HEADER_LEN + self.tags_padded_len();
+        &self.0[start..start + self.payload_len()]
     }
 }
+
+const SIG_RANGE: Range<usize> = 0..64;
+const HASH_RANGE: Range<usize> = 64..96;
+const SIGNING_KEY_RANGE: Range<usize> = 96..128;
+const ADDRESS_RANGE: Range<usize> = 128..176;
+const AUTHOR_KEY_RANGE: Range<usize> = 128..160;
+const TIMESTAMP_RANGE: Range<usize> = 160..166;
+//const NONCE_RANGE: Range<usize> = 166..172;
+const KIND_RANGE: Range<usize> = 172..176;
+const RESERVED1_RANGE: Range<usize> = 176..178;
+const LEN_T_RANGE: Range<usize> = 178..180;
+const LEN_P_RANGE: Range<usize> = 180..184;
+const RESERVED2_RANGE: Range<usize> = 184..190;
+const FLAGS_RANGE: Range<usize> = 190..192;
+const HEADER_LEN: usize = 192;
+const HASHABLE_RANGE: RangeFrom<usize> = 96..;
+const MAX_PAYLOAD_LEN: usize = 1_048_576 - HEADER_LEN;
+
+#[allow(clippy::eq_op)]
+const ADDR_AUTHOR_KEY_RANGE: Range<usize> = 128 - 128..160 - 128;
+const ADDR_TIMESTAMP_RANGE: Range<usize> = 160 - 128..166 - 128;
+const ADDR_NONCE_RANGE: Range<usize> = 166 - 128..172 - 128;
+const ADDR_KIND_RANGE: Range<usize> = 172 - 128..176 - 128;
 
 #[cfg(test)]
 mod test {
     use crate::*;
+
+    #[test]
+    fn test_padded_lengths_idea() {
+	// This just tests the idea, not the actual code since it is so embedded.
+	for (len, padded) in [(0,0), (1,8), (2,8), (7,8), (8,8), (9,16)] {
+	    let padded_len = (len + 7) & !7;
+	    assert_eq!(padded, padded_len);
+	}
+    }
 
     #[test]
     fn test_record() {
@@ -348,24 +396,3 @@ mod test {
         assert_eq!(r1, r2);
     }
 }
-
-const SIG_RANGE: Range<usize> = 0..64;
-const HASH_RANGE: Range<usize> = 64..128;
-const SIGNING_KEY_RANGE: Range<usize> = 128..160;
-const ADDRESS_RANGE: Range<usize> = 160..208;
-const AUTHOR_KEY_RANGE: Range<usize> = 160..192;
-const TIMESTAMP_RANGE: Range<usize> = 192..198;
-//const NONCE_RANGE: Range<usize> = 198..204;
-const APP_ID_RANGE: Range<usize> = 204..208;
-const LEN_T_RANGE: Range<usize> = 208..210;
-const LEN_P_RANGE: Range<usize> = 210..212;
-const FLAGS_RANGE: Range<usize> = 212..214;
-const RESERVED_RANGE: Range<usize> = 214..216;
-const HEADER_LEN: usize = 216;
-const HASHABLE_RANGE: RangeFrom<usize> = 128..;
-
-#[allow(clippy::eq_op)]
-const ADDR_AUTHOR_KEY_RANGE: Range<usize> = 160 - 160..192 - 160;
-const ADDR_TIMESTAMP_RANGE: Range<usize> = 192 - 160..198 - 160;
-const ADDR_NONCE_RANGE: Range<usize> = 198 - 160..204 - 160;
-const ADDR_APP_ID_RANGE: Range<usize> = 204 - 160..208 - 160;
