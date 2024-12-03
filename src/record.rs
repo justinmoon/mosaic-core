@@ -1,4 +1,5 @@
-use crate::{Error, PrivateKey, PublicKey, Timestamp};
+use crate::{Error, Kind, PrivateKey, PublicKey, RecordFlags, Timestamp};
+use base64::prelude::*;
 use ed25519_dalek::Signature;
 use rand_core::{OsRng, RngCore};
 use std::ops::{Range, RangeFrom};
@@ -100,7 +101,7 @@ impl Record {
 
         // Verify reserved flags are 0
         let flags = self.flags();
-        if flags & 0xFFE0 != 0 {
+        if flags & RecordFlags::all() != RecordFlags::empty() {
             return Err(Error::ReservedFlagsUsed);
         }
 
@@ -127,10 +128,10 @@ impl Record {
     pub fn new(
         master_public_key: PublicKey,
         signing_private_key: &PrivateKey,
-        application_id: u32,
+        kind: Kind,
         timestamp: Timestamp,
-        flags: u16,
-        tag_bytes: &[u8],
+        flags: RecordFlags,
+        tags_bytes: &[u8],
         payload: &[u8],
     ) -> Result<Record, Error> {
         let mut address: [u8; 48] = [0; 48];
@@ -143,9 +144,9 @@ impl Record {
         OsRng.fill_bytes(&mut nonce);
         address[ADDR_NONCE_RANGE].copy_from_slice(nonce.as_slice());
 
-        address[ADDR_KIND_RANGE].copy_from_slice(application_id.to_le_bytes().as_slice());
+        address[ADDR_KIND_RANGE].copy_from_slice(kind.0.to_le_bytes().as_slice());
 
-        Self::new_replacement(&address, signing_private_key, tag_bytes, payload, flags)
+        Self::new_replacement(&address, signing_private_key, tags_bytes, payload, flags)
     }
 
     /// Create a new `Record` from component parts, replacing an existing record
@@ -159,45 +160,45 @@ impl Record {
     pub fn new_replacement(
         address: &[u8; 48],
         signing_private_key: &PrivateKey,
-        tag_bytes: &[u8],
+        tags_bytes: &[u8],
         payload: &[u8],
-        flags: u16,
+        flags: RecordFlags,
     ) -> Result<Record, Error> {
         if payload.len() > MAX_PAYLOAD_LEN {
             return Err(Error::RecordTooLong);
         }
-	if tag_bytes.len() > 65_536 {
+        if tags_bytes.len() > 65_536 {
             return Err(Error::RecordTooLong);
-	}
+        }
 
         let payload_padded_len = (payload.len() + 7) & !7;
-        let tags_padded_len = (tag_bytes.len() + 7) & !7;
+        let tags_padded_len = (tags_bytes.len() + 7) & !7;
 
         let len = HEADER_LEN + payload_padded_len + tags_padded_len;
         if len > 1_048_576 {
             return Err(Error::RecordTooLong);
         }
 
-        if flags & 0xFFE0 != 0 {
+        if flags & RecordFlags::all() != RecordFlags::empty() {
             return Err(Error::ReservedFlagsUsed);
         }
 
         let mut bytes = vec![0; len];
 
-        let tag_end = HEADER_LEN + tags_padded_len as usize;
+        let tag_end = HEADER_LEN + tags_padded_len;
 
         bytes[tag_end..tag_end + payload.len()].copy_from_slice(payload);
 
-        bytes[HEADER_LEN..HEADER_LEN + tag_bytes.len()].copy_from_slice(tag_bytes);
+        bytes[HEADER_LEN..HEADER_LEN + tags_bytes.len()].copy_from_slice(tags_bytes);
 
-        bytes[FLAGS_RANGE].copy_from_slice(flags.to_le_bytes().as_slice());
+        bytes[FLAGS_RANGE].copy_from_slice(flags.bits().to_le_bytes().as_slice());
 
         #[allow(clippy::cast_possible_truncation)]
-	let payload_len = payload.len() as u32;
+        let payload_len = payload.len() as u32;
         bytes[LEN_P_RANGE].copy_from_slice(payload_len.to_le_bytes().as_slice());
 
         #[allow(clippy::cast_possible_truncation)]
-	let tags_len = tag_bytes.len() as u16;
+        let tags_len = tags_bytes.len() as u16;
         bytes[LEN_T_RANGE].copy_from_slice(tags_len.to_le_bytes().as_slice());
 
         bytes[ADDRESS_RANGE].copy_from_slice(address);
@@ -239,7 +240,7 @@ impl Record {
     /// Hash
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
-    pub fn hash(&self) -> &[u8; 64] {
+    pub fn hash(&self) -> &[u8; 32] {
         self.0[HASH_RANGE].try_into().unwrap()
     }
 
@@ -264,11 +265,11 @@ impl Record {
         Timestamp::from_slice(self.0[TIMESTAMP_RANGE].try_into().unwrap()).unwrap()
     }
 
-    /// Application ID
+    /// Kind
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
-    pub fn application_id(&self) -> u32 {
-        u32::from_le_bytes(self.0[KIND_RANGE].try_into().unwrap())
+    pub fn kind(&self) -> Kind {
+        Kind(u32::from_le_bytes(self.0[KIND_RANGE].try_into().unwrap()))
     }
 
     /// Address
@@ -281,8 +282,8 @@ impl Record {
     /// Flags
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
-    pub fn flags(&self) -> u16 {
-        u16::from_le_bytes(self.0[FLAGS_RANGE].try_into().unwrap())
+    pub fn flags(&self) -> RecordFlags {
+        RecordFlags::from_bits_retain(u16::from_le_bytes(self.0[FLAGS_RANGE].try_into().unwrap()))
     }
 
     /// Tags length
@@ -296,9 +297,9 @@ impl Record {
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
     pub fn tags_padded_len(&self) -> usize {
-	(self.tags_len() + 7) & !7
+        (self.tags_len() + 7) & !7
     }
-    
+
     /// Tag bytes
     #[must_use]
     pub fn tags_bytes(&self) -> &[u8] {
@@ -316,16 +317,16 @@ impl Record {
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
     pub fn payload_padded_len(&self) -> usize {
-	(self.payload_len() + 7) & !7
+        (self.payload_len() + 7) & !7
     }
-    
+
     /// Payload bytes
-    /// 
+    ///
     /// These are the raw bytes. If Zstd is used, the caller is responsible for
     /// decompressing them.
     #[must_use]
     pub fn payload_bytes_raw(&self) -> &[u8] {
-	let start = HEADER_LEN + self.tags_padded_len();
+        let start = HEADER_LEN + self.tags_padded_len();
         &self.0[start..start + self.payload_len()]
     }
 }
@@ -353,17 +354,36 @@ const ADDR_TIMESTAMP_RANGE: Range<usize> = 160 - 128..166 - 128;
 const ADDR_NONCE_RANGE: Range<usize> = 166 - 128..172 - 128;
 const ADDR_KIND_RANGE: Range<usize> = 172 - 128..176 - 128;
 
+impl std::fmt::Display for Record {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "hash: {}", BASE64_STANDARD.encode(self.hash()))?;
+        writeln!(f, "  address: {}", BASE64_STANDARD.encode(self.address()))?;
+        writeln!(f, "  author key: {}", self.author_public_key())?;
+        writeln!(f, "  signing key: {}", self.signing_public_key())?;
+        writeln!(f, "  timestamp: {}", self.timestamp())?;
+        writeln!(f, "  kind: {}", self.kind())?;
+        writeln!(f, "  flags: {}", self.flags())?;
+        writeln!(f, "  tags: {}", BASE64_STANDARD.encode(self.tags_bytes()))?;
+        writeln!(
+            f,
+            "  payload: {}",
+            BASE64_STANDARD.encode(self.payload_bytes_raw())
+        )?;
+
+        Ok(())
+    }
+}
 #[cfg(test)]
 mod test {
     use crate::*;
 
     #[test]
     fn test_padded_lengths_idea() {
-	// This just tests the idea, not the actual code since it is so embedded.
-	for (len, padded) in [(0,0), (1,8), (2,8), (7,8), (8,8), (9,16)] {
-	    let padded_len = (len + 7) & !7;
-	    assert_eq!(padded, padded_len);
-	}
+        // This just tests the idea, not the actual code since it is so embedded.
+        for (len, padded) in [(0, 0), (1, 8), (2, 8), (7, 8), (8, 8), (9, 16)] {
+            let padded_len = (len + 7) & !7;
+            assert_eq!(padded, padded_len);
+        }
     }
 
     #[test]
@@ -379,15 +399,15 @@ mod test {
         let r1 = Record::new(
             master_public_key,
             &signing_private_key,
-            1,
+            Kind::KEY_SCHEDULE,
             Timestamp::now().unwrap(),
-            0,
+            RecordFlags::empty(),
             b"",
             b"hello world",
         )
         .unwrap();
 
-        println!("r1 built");
+        println!("{}", r1);
 
         let r2 = Record::from_bytes(r1.as_bytes()).unwrap();
 

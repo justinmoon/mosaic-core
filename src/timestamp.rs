@@ -71,6 +71,22 @@ impl Timestamp {
         }
     }
 
+    /// Converts to unixtime seconds and milliseconds
+    #[must_use]
+    pub fn to_unixtime(&self) -> (u64, u64) {
+        let unadjusted_secs = self.0 / 1000;
+        let microsecs = self.0 % 1000;
+
+        let leaps = iana_ntp_leap_seconds()
+            .iter()
+            .enumerate()
+            .map(|(i, ntp)| ntp - 2_208_988_800 + 1 + i as u64)
+            .filter(|x| *x < unadjusted_secs)
+            .count() as u64;
+
+        (unadjusted_secs - leaps, microsecs)
+    }
+
     /// Get the current time
     ///
     /// # Errors
@@ -147,6 +163,12 @@ fn iana_ntp_leap_seconds() -> Vec<u64> {
     ]
 }
 
+impl std::fmt::Display for Timestamp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -165,5 +187,16 @@ mod test {
         let slice = timestamp.to_slice();
         let timestamp2 = Timestamp::from_slice(&slice).unwrap();
         assert_eq!(timestamp, timestamp2);
+    }
+
+    #[test]
+    fn test_timestamp_unixtime_conversions() {
+        // Trial 10 seconds before and after the 4th leapsecond
+        for u in 126230400 - 10..126230400 + 10 {
+            let ts = Timestamp::from_unixtime(u, 500).unwrap();
+            println!("{:?}", ts); // so you can see the leap
+            let (u2, _) = ts.to_unixtime();
+            assert_eq!(u, u2);
+        }
     }
 }
