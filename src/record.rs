@@ -106,10 +106,7 @@ impl Record {
         }
 
         // Verify reserved space is 0
-        if self.0[RESERVED1_RANGE] != [0, 0] {
-            return Err(Error::ReservedSpaceUsed);
-        }
-        if self.0[RESERVED2_RANGE] != [0, 0, 0, 0, 0, 0] {
+        if self.0[RESV_RANGE] != [0, 0] {
             return Err(Error::ReservedSpaceUsed);
         }
 
@@ -138,15 +135,22 @@ impl Record {
 
         address[ADDR_AUTHOR_KEY_RANGE].copy_from_slice(master_public_key.as_bytes().as_slice());
 
-        address[ADDR_TIMESTAMP_RANGE].copy_from_slice(timestamp.to_slice().as_slice());
+        address[ADDR_KIND_RANGE].copy_from_slice(kind.0.to_le_bytes().as_slice());
 
-        let mut nonce: [u8; 6] = [0; 6];
+        address[ADDR_ORIG_TIMESTAMP_RANGE].copy_from_slice(timestamp.to_slice().as_slice());
+
+        let mut nonce: [u8; 8] = [0; 8];
         OsRng.fill_bytes(&mut nonce);
         address[ADDR_NONCE_RANGE].copy_from_slice(nonce.as_slice());
 
-        address[ADDR_KIND_RANGE].copy_from_slice(kind.0.to_le_bytes().as_slice());
-
-        Self::new_replacement(&address, signing_private_key, tags_bytes, payload, flags)
+        Self::new_replacement(
+            &address,
+            timestamp,
+            signing_private_key,
+            tags_bytes,
+            payload,
+            flags,
+        )
     }
 
     /// Create a new `Record` from component parts, replacing an existing record
@@ -159,6 +163,7 @@ impl Record {
     #[allow(clippy::missing_panics_doc)]
     pub fn new_replacement(
         address: &[u8; 48],
+        timestamp: Timestamp,
         signing_private_key: &PrivateKey,
         tags_bytes: &[u8],
         payload: &[u8],
@@ -191,8 +196,6 @@ impl Record {
 
         bytes[HEADER_LEN..HEADER_LEN + tags_bytes.len()].copy_from_slice(tags_bytes);
 
-        bytes[FLAGS_RANGE].copy_from_slice(flags.bits().to_le_bytes().as_slice());
-
         #[allow(clippy::cast_possible_truncation)]
         let payload_len = payload.len() as u32;
         bytes[LEN_P_RANGE].copy_from_slice(payload_len.to_le_bytes().as_slice());
@@ -200,6 +203,10 @@ impl Record {
         #[allow(clippy::cast_possible_truncation)]
         let tags_len = tags_bytes.len() as u16;
         bytes[LEN_T_RANGE].copy_from_slice(tags_len.to_le_bytes().as_slice());
+
+        bytes[TIMESTAMP_RANGE].copy_from_slice(timestamp.to_slice().as_slice());
+
+        bytes[FLAGS_RANGE].copy_from_slice(flags.bits().to_le_bytes().as_slice());
 
         bytes[ADDRESS_RANGE].copy_from_slice(address);
 
@@ -258,18 +265,11 @@ impl Record {
         PublicKey::from_bytes(self.0[AUTHOR_KEY_RANGE].try_into().unwrap()).unwrap()
     }
 
-    /// Timestamp
-    #[allow(clippy::missing_panics_doc)]
-    #[must_use]
-    pub fn timestamp(&self) -> Timestamp {
-        Timestamp::from_slice(self.0[TIMESTAMP_RANGE].try_into().unwrap()).unwrap()
-    }
-
     /// Kind
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
     pub fn kind(&self) -> Kind {
-        Kind(u32::from_le_bytes(self.0[KIND_RANGE].try_into().unwrap()))
+        Kind(u16::from_le_bytes(self.0[KIND_RANGE].try_into().unwrap()))
     }
 
     /// Address
@@ -279,11 +279,32 @@ impl Record {
         self.0[ADDRESS_RANGE].try_into().unwrap()
     }
 
+    /// Original Timestamp
+    #[allow(clippy::missing_panics_doc)]
+    #[must_use]
+    pub fn original_timestamp(&self) -> Timestamp {
+        Timestamp::from_slice(self.0[ORIG_TIMESTAMP_RANGE].try_into().unwrap()).unwrap()
+    }
+
+    /// Nonce
+    #[allow(clippy::missing_panics_doc)]
+    #[must_use]
+    pub fn nonce(&self) -> &[u8; 8] {
+        self.0[NONCE_RANGE].try_into().unwrap()
+    }
+
     /// Flags
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
     pub fn flags(&self) -> RecordFlags {
         RecordFlags::from_bits_retain(u16::from_le_bytes(self.0[FLAGS_RANGE].try_into().unwrap()))
+    }
+
+    /// Timestamp
+    #[allow(clippy::missing_panics_doc)]
+    #[must_use]
+    pub fn timestamp(&self) -> Timestamp {
+        Timestamp::from_slice(self.0[TIMESTAMP_RANGE].try_into().unwrap()).unwrap()
     }
 
     /// Tags length
@@ -336,23 +357,23 @@ const HASH_RANGE: Range<usize> = 64..96;
 const SIGNING_KEY_RANGE: Range<usize> = 96..128;
 const ADDRESS_RANGE: Range<usize> = 128..176;
 const AUTHOR_KEY_RANGE: Range<usize> = 128..160;
-const TIMESTAMP_RANGE: Range<usize> = 160..166;
-//const NONCE_RANGE: Range<usize> = 166..172;
-const KIND_RANGE: Range<usize> = 172..176;
-const RESERVED1_RANGE: Range<usize> = 176..178;
-const LEN_T_RANGE: Range<usize> = 178..180;
-const LEN_P_RANGE: Range<usize> = 180..184;
-const RESERVED2_RANGE: Range<usize> = 184..190;
-const FLAGS_RANGE: Range<usize> = 190..192;
+const KIND_RANGE: Range<usize> = 160..162;
+const ORIG_TIMESTAMP_RANGE: Range<usize> = 162..168;
+const NONCE_RANGE: Range<usize> = 168..176;
+const FLAGS_RANGE: Range<usize> = 176..178;
+const TIMESTAMP_RANGE: Range<usize> = 178..184;
+const RESV_RANGE: Range<usize> = 184..186;
+const LEN_T_RANGE: Range<usize> = 186..188;
+const LEN_P_RANGE: Range<usize> = 188..192;
 const HEADER_LEN: usize = 192;
 const HASHABLE_RANGE: RangeFrom<usize> = 96..;
 const MAX_PAYLOAD_LEN: usize = 1_048_576 - HEADER_LEN;
 
 #[allow(clippy::eq_op)]
 const ADDR_AUTHOR_KEY_RANGE: Range<usize> = 128 - 128..160 - 128;
-const ADDR_TIMESTAMP_RANGE: Range<usize> = 160 - 128..166 - 128;
-const ADDR_NONCE_RANGE: Range<usize> = 166 - 128..172 - 128;
-const ADDR_KIND_RANGE: Range<usize> = 172 - 128..176 - 128;
+const ADDR_KIND_RANGE: Range<usize> = 160 - 128..162 - 128;
+const ADDR_ORIG_TIMESTAMP_RANGE: Range<usize> = 162 - 128..168 - 128;
+const ADDR_NONCE_RANGE: Range<usize> = 168 - 128..176 - 128;
 
 impl std::fmt::Display for Record {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

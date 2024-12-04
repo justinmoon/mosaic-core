@@ -1,6 +1,6 @@
 /// A record kind
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Kind(pub u32);
+pub struct Kind(pub u16);
 
 impl Kind {
     pub const KEY_SCHEDULE: Kind = Kind(0x1);

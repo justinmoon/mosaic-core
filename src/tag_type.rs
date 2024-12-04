@@ -1,4 +1,3 @@
-
 /// A record kind
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TagType(pub u16);
