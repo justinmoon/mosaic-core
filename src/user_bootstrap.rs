@@ -91,6 +91,7 @@ impl UserBootstrap {
         for (usage, server_key) in &self.0 {
             output.push('\n');
             output.push(usage.as_printable_byte() as char);
+	    output.push(' ');
             output.push_str(&format!("{server_key}"));
         }
         output
@@ -109,7 +110,7 @@ impl UserBootstrap {
         let mut output: Vec<(ServerUsage, PublicKey)> = vec![];
         for part in s[2..].split('\n') {
             let server_usage = ServerUsage::from_printable_byte(part.as_bytes()[0]);
-            let public_key = PublicKey::from_printable(&part[1..])?;
+            let public_key = PublicKey::from_printable(&part[2..])?;
             output.push((server_usage, public_key));
         }
 
@@ -196,7 +197,7 @@ mod test {
 
     #[test]
     fn test_user_bootstrap_serialization() {
-        let s = "U\n37AgCGv/SF6EThqVuoxU4edrKzqrzqD9yd4e11eTkGIQ=\n1vpYyesj/gbTHzY5X20fGrolobsTG4Ygim8X4DnfXxOU=";
+        let s = "U\n3 7AgCGv/SF6EThqVuoxU4edrKzqrzqD9yd4e11eTkGIQ=\n1 vpYyesj/gbTHzY5X20fGrolobsTG4Ygim8X4DnfXxOU=";
         let ubs = UserBootstrap::from_dht_string_and_seq(s, 1).unwrap();
         let s2 = ubs.to_dht_string();
         assert_eq!(s, &s2);
@@ -216,7 +217,7 @@ mod test {
         let public_key = private_key.public();
 
         // Expected user bootstrap
-        let s = "U\n37AgCGv/SF6EThqVuoxU4edrKzqrzqD9yd4e11eTkGIQ=\n1vpYyesj/gbTHzY5X20fGrolobsTG4Ygim8X4DnfXxOU=";
+        let s = "U\n3 7AgCGv/SF6EThqVuoxU4edrKzqrzqD9yd4e11eTkGIQ=\n1 vpYyesj/gbTHzY5X20fGrolobsTG4Ygim8X4DnfXxOU=";
         let expected_user_bootstrap = UserBootstrap::from_dht_string_and_seq(s, 3).unwrap();
 
         // Fetch UserBootstrap from this server
