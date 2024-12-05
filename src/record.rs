@@ -105,11 +105,6 @@ impl Record {
             return Err(Error::ReservedFlagsUsed);
         }
 
-        // Verify reserved space is 0
-        if self.0[RESV_RANGE] != [0, 0] {
-            return Err(Error::ReservedSpaceUsed);
-        }
-
         Ok(())
     }
 
@@ -128,6 +123,7 @@ impl Record {
         kind: Kind,
         timestamp: Timestamp,
         flags: RecordFlags,
+	app_flags: u16,
         tags_bytes: &[u8],
         payload: &[u8],
     ) -> Result<Record, Error> {
@@ -150,6 +146,7 @@ impl Record {
             tags_bytes,
             payload,
             flags,
+	    app_flags
         )
     }
 
@@ -168,6 +165,7 @@ impl Record {
         tags_bytes: &[u8],
         payload: &[u8],
         flags: RecordFlags,
+	app_flags: u16,
     ) -> Result<Record, Error> {
         if payload.len() > MAX_PAYLOAD_LEN {
             return Err(Error::RecordTooLong);
@@ -204,6 +202,7 @@ impl Record {
         let tags_len = tags_bytes.len() as u16;
         bytes[LEN_T_RANGE].copy_from_slice(tags_len.to_le_bytes().as_slice());
 
+        bytes[APPFLAGS_RANGE].copy_from_slice(app_flags.to_le_bytes().as_slice());
         bytes[TIMESTAMP_RANGE].copy_from_slice(timestamp.to_slice().as_slice());
 
         bytes[FLAGS_RANGE].copy_from_slice(flags.bits().to_le_bytes().as_slice());
@@ -300,6 +299,13 @@ impl Record {
         RecordFlags::from_bits_retain(u16::from_le_bytes(self.0[FLAGS_RANGE].try_into().unwrap()))
     }
 
+    /// App Flags
+    #[allow(clippy::missing_panics_doc)]
+    #[must_use]
+    pub fn app_flags(&self) -> u16 {
+        u16::from_le_bytes(self.0[APPFLAGS_RANGE].try_into().unwrap())
+    }
+
     /// Timestamp
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
@@ -362,7 +368,7 @@ const ORIG_TIMESTAMP_RANGE: Range<usize> = 162..168;
 const NONCE_RANGE: Range<usize> = 168..176;
 const FLAGS_RANGE: Range<usize> = 176..178;
 const TIMESTAMP_RANGE: Range<usize> = 178..184;
-const RESV_RANGE: Range<usize> = 184..186;
+const APPFLAGS_RANGE: Range<usize> = 184..186;
 const LEN_T_RANGE: Range<usize> = 186..188;
 const LEN_P_RANGE: Range<usize> = 188..192;
 const HEADER_LEN: usize = 192;
@@ -423,6 +429,7 @@ mod test {
             Kind::KEY_SCHEDULE,
             Timestamp::now().unwrap(),
             RecordFlags::empty(),
+	    0,
             b"",
             b"hello world",
         )
