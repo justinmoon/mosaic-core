@@ -11,6 +11,9 @@ mod crypto;
 mod error;
 pub use error::Error;
 
+mod id;
+pub use id::Id;
+
 mod kind;
 pub use kind::Kind;
 

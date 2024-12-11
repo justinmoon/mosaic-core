@@ -1,4 +1,4 @@
-use crate::{Error, Kind, PrivateKey, PublicKey, RecordFlags, Timestamp};
+use crate::{Error, Id, Kind, PrivateKey, PublicKey, RecordFlags, Timestamp};
 use base64::prelude::*;
 use ed25519_dalek::Signature;
 use rand_core::{OsRng, RngCore};
@@ -256,8 +256,8 @@ impl Record {
     /// Id
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
-    pub fn id(&self) -> &[u8; 48] {
-        self.0[ID_RANGE].try_into().unwrap()
+    pub fn id(&self) -> Id {
+        Id::from_bytes_no_verify(self.0[ID_RANGE].try_into().unwrap())
     }
 
     /// Signing `PublicKey`

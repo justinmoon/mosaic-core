@@ -116,11 +116,28 @@ impl Timestamp {
     ///
     /// # Errors
     ///
-    /// Returns an error if the data is out o frange for a `Timestamp`
+    /// Returns an error if the data is out of range for a `Timestamp`
     pub fn from_bytes(slice: &[u8; 6]) -> Result<Timestamp, Error> {
         let mut eight: [u8; 8] = [0; 8];
         eight[..6].copy_from_slice(slice);
         let millis: u64 = u64::from_le_bytes(eight);
+
+        if millis > 0x7FFF_FFFF_FFFF {
+            Err(Error::TimeOutOfRange)
+        } else {
+            Ok(Timestamp(millis))
+        }
+    }
+
+    /// Create from a 6-byte big-endian slice
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the data is out of range for a `Timestamp`
+    pub fn from_be_bytes(slice: &[u8; 6]) -> Result<Timestamp, Error> {
+        let mut eight: [u8; 8] = [0; 8];
+        eight[2..8].copy_from_slice(slice);
+        let millis: u64 = u64::from_be_bytes(eight);
 
         if millis > 0x7FFF_FFFF_FFFF {
             Err(Error::TimeOutOfRange)
