@@ -5,9 +5,6 @@ use rand_core::{OsRng, RngCore};
 use std::ops::{Range, RangeFrom};
 
 /*
-FIXME - add 6 bits (3 and 3) that specify the precise length of tags and payload
-FIXME - honor zstd flag
-FIXME - flags type should be better
 FIXME - wrap address type
 FIXME - maybe full_hash() vs id() which is just the first half
 */
@@ -78,14 +75,16 @@ impl Record {
         let _author_public_key =
             PublicKey::from_bytes(self.0[AUTHOR_KEY_RANGE].try_into().unwrap())?;
 
+        // FIXME: verify to bootstrap for author TBD
+
         // Compute the true hash
-        let mut truehash: [u8; 32] = [0; 32];
+        let mut truehash: [u8; 64] = [0; 64];
         let mut hasher = blake3::Hasher::new();
         hasher.update(&self.0[HASHABLE_RANGE]);
         hasher.finalize_xof().fill(&mut truehash[..]);
 
-        // Compare the true hash to the claimed hash
-        if truehash != self.0[HASH_RANGE] {
+        // Compare the start of the true hash to the claimed hash
+        if truehash[..40] != self.0[HASH_RANGE] {
             return Err(Error::HashMismatch);
         }
 
@@ -97,12 +96,16 @@ impl Record {
             .verify_prehashed_strict(digest, Some(b"Mosaic"), &signature)?;
 
         // Verify the timestamp
-        let _timestamp = Timestamp::from_slice(self.0[TIMESTAMP_RANGE].try_into().unwrap())?;
+        let _timestamp = Timestamp::from_bytes(self.0[TIMESTAMP_RANGE].try_into().unwrap())?;
 
         // Verify reserved flags are 0
         let flags = self.flags();
         if flags & RecordFlags::all() != RecordFlags::empty() {
             return Err(Error::ReservedFlagsUsed);
+        }
+
+        if self.0[70] != 0 || self.0[71] != 0 {
+            return Err(Error::IdZerosAreNotZero);
         }
 
         Ok(())
@@ -117,13 +120,14 @@ impl Record {
     /// Returns an `Err` if any data is too long, if reserved flags are set,
     /// or if signing fails.
     #[allow(clippy::missing_panics_doc)]
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         master_public_key: PublicKey,
         signing_private_key: &PrivateKey,
         kind: Kind,
         timestamp: Timestamp,
         flags: RecordFlags,
-	app_flags: u16,
+        app_flags: u16,
         tags_bytes: &[u8],
         payload: &[u8],
     ) -> Result<Record, Error> {
@@ -133,7 +137,7 @@ impl Record {
 
         address[ADDR_KIND_RANGE].copy_from_slice(kind.0.to_le_bytes().as_slice());
 
-        address[ADDR_ORIG_TIMESTAMP_RANGE].copy_from_slice(timestamp.to_slice().as_slice());
+        address[ADDR_ORIG_TIMESTAMP_RANGE].copy_from_slice(timestamp.to_bytes().as_slice());
 
         let mut nonce: [u8; 8] = [0; 8];
         OsRng.fill_bytes(&mut nonce);
@@ -146,7 +150,7 @@ impl Record {
             tags_bytes,
             payload,
             flags,
-	    app_flags
+            app_flags,
         )
     }
 
@@ -165,7 +169,7 @@ impl Record {
         tags_bytes: &[u8],
         payload: &[u8],
         flags: RecordFlags,
-	app_flags: u16,
+        app_flags: u16,
     ) -> Result<Record, Error> {
         if payload.len() > MAX_PAYLOAD_LEN {
             return Err(Error::RecordTooLong);
@@ -203,7 +207,7 @@ impl Record {
         bytes[LEN_T_RANGE].copy_from_slice(tags_len.to_le_bytes().as_slice());
 
         bytes[APPFLAGS_RANGE].copy_from_slice(app_flags.to_le_bytes().as_slice());
-        bytes[TIMESTAMP_RANGE].copy_from_slice(timestamp.to_slice().as_slice());
+        bytes[TIMESTAMP_RANGE].copy_from_slice(timestamp.to_bytes().as_slice());
 
         bytes[FLAGS_RANGE].copy_from_slice(flags.bits().to_le_bytes().as_slice());
 
@@ -212,9 +216,15 @@ impl Record {
         let public_key = signing_private_key.public();
         bytes[SIGNING_KEY_RANGE].copy_from_slice(public_key.as_bytes().as_slice());
 
+        let mut truehash: [u8; 64] = [0; 64];
         let mut hasher = blake3::Hasher::new();
         hasher.update(&bytes[HASHABLE_RANGE]);
-        hasher.finalize_xof().fill(&mut bytes[HASH_RANGE]);
+        hasher.finalize_xof().fill(&mut truehash[..]);
+        bytes[HASH_RANGE].copy_from_slice(&truehash[..40]);
+
+        bytes[BE_TIMESTAMP_RANGE].copy_from_slice(timestamp.to_be_bytes().as_slice());
+
+        // Sign
         let digest = crate::crypto::Blake3 { h: hasher };
         let sig = signing_private_key
             .0
@@ -243,11 +253,11 @@ impl Record {
         Signature::from_slice(&self.0[SIG_RANGE]).unwrap()
     }
 
-    /// Hash
+    /// Id
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
-    pub fn hash(&self) -> &[u8; 32] {
-        self.0[HASH_RANGE].try_into().unwrap()
+    pub fn id(&self) -> &[u8; 48] {
+        self.0[ID_RANGE].try_into().unwrap()
     }
 
     /// Signing `PublicKey`
@@ -282,7 +292,7 @@ impl Record {
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
     pub fn original_timestamp(&self) -> Timestamp {
-        Timestamp::from_slice(self.0[ORIG_TIMESTAMP_RANGE].try_into().unwrap()).unwrap()
+        Timestamp::from_bytes(self.0[ORIG_TIMESTAMP_RANGE].try_into().unwrap()).unwrap()
     }
 
     /// Nonce
@@ -310,7 +320,7 @@ impl Record {
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
     pub fn timestamp(&self) -> Timestamp {
-        Timestamp::from_slice(self.0[TIMESTAMP_RANGE].try_into().unwrap()).unwrap()
+        Timestamp::from_bytes(self.0[TIMESTAMP_RANGE].try_into().unwrap()).unwrap()
     }
 
     /// Tags length
@@ -359,31 +369,50 @@ impl Record {
 }
 
 const SIG_RANGE: Range<usize> = 0..64;
-const HASH_RANGE: Range<usize> = 64..96;
-const SIGNING_KEY_RANGE: Range<usize> = 96..128;
-const ADDRESS_RANGE: Range<usize> = 128..176;
-const AUTHOR_KEY_RANGE: Range<usize> = 128..160;
-const KIND_RANGE: Range<usize> = 160..162;
-const ORIG_TIMESTAMP_RANGE: Range<usize> = 162..168;
-const NONCE_RANGE: Range<usize> = 168..176;
-const FLAGS_RANGE: Range<usize> = 176..178;
-const TIMESTAMP_RANGE: Range<usize> = 178..184;
-const APPFLAGS_RANGE: Range<usize> = 184..186;
-const LEN_T_RANGE: Range<usize> = 186..188;
-const LEN_P_RANGE: Range<usize> = 188..192;
-const HEADER_LEN: usize = 192;
-const HASHABLE_RANGE: RangeFrom<usize> = 96..;
+
+const ID_RANGE: Range<usize> = 64..112;
+const BE_TIMESTAMP_RANGE: Range<usize> = 64..70;
+// const ZERO_RANGE: Range<usize> = 70..72;
+const HASH_RANGE: Range<usize> = 72..112;
+
+const SIGNING_KEY_RANGE: Range<usize> = 112..144;
+
+const ADDRESS_RANGE: Range<usize> = 144..192;
+const ORIG_TIMESTAMP_RANGE: Range<usize> = 144..150;
+const KIND_RANGE: Range<usize> = 150..152;
+const NONCE_RANGE: Range<usize> = 152..160;
+const AUTHOR_KEY_RANGE: Range<usize> = 160..192;
+
+const FLAGS_RANGE: Range<usize> = 192..194;
+const TIMESTAMP_RANGE: Range<usize> = 194..200;
+const APPFLAGS_RANGE: Range<usize> = 200..202;
+const LEN_T_RANGE: Range<usize> = 202..204;
+const LEN_P_RANGE: Range<usize> = 204..208;
+
+const HEADER_LEN: usize = 208;
+const HASHABLE_RANGE: RangeFrom<usize> = 112..;
 const MAX_PAYLOAD_LEN: usize = 1_048_576 - HEADER_LEN;
 
-#[allow(clippy::eq_op)]
-const ADDR_AUTHOR_KEY_RANGE: Range<usize> = 128 - 128..160 - 128;
-const ADDR_KIND_RANGE: Range<usize> = 160 - 128..162 - 128;
-const ADDR_ORIG_TIMESTAMP_RANGE: Range<usize> = 162 - 128..168 - 128;
-const ADDR_NONCE_RANGE: Range<usize> = 168 - 128..176 - 128;
+// ranges within IDs
+//const ID_START: usize = 64;
+//const ID_BE_TIMESTAMP_RANGE: Range<usize> = range_sub(TIMESTAMP_RANGE, ID_START);
+//const ID_ZERO_RANGE: Range<usize> = range_sub(ZERO_RANGE, ID_START);
+//const ID_HASH_RANGE: Range<usize> = range_sub(HASH_RANGE, ID_START);
+
+// ranges within Addresses
+const ADDR_START: usize = 144;
+const ADDR_AUTHOR_KEY_RANGE: Range<usize> = range_sub(AUTHOR_KEY_RANGE, ADDR_START);
+const ADDR_KIND_RANGE: Range<usize> = range_sub(KIND_RANGE, ADDR_START);
+const ADDR_ORIG_TIMESTAMP_RANGE: Range<usize> = range_sub(ORIG_TIMESTAMP_RANGE, ADDR_START);
+const ADDR_NONCE_RANGE: Range<usize> = range_sub(NONCE_RANGE, ADDR_START);
+
+const fn range_sub(range: Range<usize>, sub: usize) -> Range<usize> {
+    (range.start - sub)..(range.end - sub)
+}
 
 impl std::fmt::Display for Record {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "hash: {}", BASE64_STANDARD.encode(self.hash()))?;
+        writeln!(f, "id: {}", BASE64_STANDARD.encode(self.id()))?;
         writeln!(f, "  address: {}", BASE64_STANDARD.encode(self.address()))?;
         writeln!(f, "  author key: {}", self.author_public_key())?;
         writeln!(f, "  signing key: {}", self.signing_public_key())?;
@@ -429,7 +458,7 @@ mod test {
             Kind::KEY_SCHEDULE,
             Timestamp::now().unwrap(),
             RecordFlags::empty(),
-	    0,
+            0,
             b"",
             b"hello world",
         )

@@ -98,11 +98,18 @@ impl Timestamp {
         Self::from_unixtime(duration.as_secs(), u64::from(duration.subsec_millis()))
     }
 
-    /// View as a 6-byte little-endian slice
+    /// Returns a 6-byte little-endian byte array
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
-    pub fn to_slice(&self) -> [u8; 6] {
+    pub fn to_bytes(&self) -> [u8; 6] {
         <[u8; 6]>::try_from(&self.0.to_le_bytes()[..6]).unwrap()
+    }
+
+    /// Returns a 6-byte big-endian byte array
+    #[allow(clippy::missing_panics_doc)]
+    #[must_use]
+    pub fn to_be_bytes(&self) -> [u8; 6] {
+        <[u8; 6]>::try_from(&self.0.to_be_bytes()[2..8]).unwrap()
     }
 
     /// Create from a 6-byte little-endian slice
@@ -110,7 +117,7 @@ impl Timestamp {
     /// # Errors
     ///
     /// Returns an error if the data is out o frange for a `Timestamp`
-    pub fn from_slice(slice: &[u8; 6]) -> Result<Timestamp, Error> {
+    pub fn from_bytes(slice: &[u8; 6]) -> Result<Timestamp, Error> {
         let mut eight: [u8; 8] = [0; 8];
         eight[..6].copy_from_slice(slice);
         let millis: u64 = u64::from_le_bytes(eight);
@@ -184,9 +191,12 @@ mod test {
         assert_eq!(timestamp.as_millis(), 1732950228001);
 
         // convert to and from a slice and compare
-        let slice = timestamp.to_slice();
-        let timestamp2 = Timestamp::from_slice(&slice).unwrap();
+        let bytes = timestamp.to_bytes();
+        let timestamp2 = Timestamp::from_bytes(&bytes).unwrap();
         assert_eq!(timestamp, timestamp2);
+
+        // Print now
+        println!("NOW={}", Timestamp::now().unwrap());
     }
 
     #[test]

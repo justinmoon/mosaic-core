@@ -91,7 +91,7 @@ impl UserBootstrap {
         for (usage, server_key) in &self.0 {
             output.push('\n');
             output.push(usage.as_printable_byte() as char);
-	    output.push(' ');
+            output.push(' ');
             output.push_str(&format!("{server_key}"));
         }
         output
