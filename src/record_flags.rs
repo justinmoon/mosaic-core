@@ -7,11 +7,30 @@ pub struct RecordFlags(u16);
 bitflags! {
     /// Record Flags
     impl RecordFlags: u16 {
-    const ZSTD = 0x01;
-    const FROM_AUTHOR = 0x02;
-    const TO_RECIPIENTS = 0x04;
-    const NO_BRIDGE = 0x08;
-    const EPHEMERAL = 0x10;
+	/// The payload is compressed with Zstd
+	const ZSTD = 0x01;
+
+	/// Servers SHOULD only accept the record from the author (requiring
+	/// authentication)
+	const FROM_AUTHOR = 0x02;
+
+	/// Servers SHOULD only serve the record to people tagged (requiring
+	/// authentication)
+	const TO_RECIPIENTS = 0x04;
+
+	/// Bridges SHOULD NOT propogate the record to other networks (nostr,
+	/// mastodon, etc)
+	const NO_BRIDGE = 0x08;
+
+	/// The record is ephemeral; Servers should serve it to current
+	/// subscribers and not keep it.
+	const EPHEMERAL = 0x10;
+    }
+}
+
+impl Default for RecordFlags {
+    fn default() -> RecordFlags {
+	RecordFlags::empty()
     }
 }
 

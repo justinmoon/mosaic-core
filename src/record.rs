@@ -385,7 +385,7 @@ impl std::fmt::Display for Record {
         writeln!(f, "  signing key: {}", self.signing_public_key())?;
         writeln!(f, "  timestamp: {}", self.timestamp())?;
         writeln!(f, "  kind: {}", self.kind())?;
-        writeln!(f, "  flags: {}", self.flags())?;
+        writeln!(f, "  flags: {} {}", self.flags(), self.app_flags())?;
         writeln!(f, "  tags: {}", BASE64_STANDARD.encode(self.tags_bytes()))?;
         writeln!(
             f,
