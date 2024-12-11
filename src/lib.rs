@@ -6,6 +6,9 @@ pub use ed25519_dalek;
 pub use mainline;
 pub use rand;
 
+mod address;
+pub use address::Address;
+
 mod crypto;
 
 mod error;

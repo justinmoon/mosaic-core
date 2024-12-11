@@ -1,4 +1,4 @@
-use crate::{Error, Id, Kind, PrivateKey, PublicKey, RecordFlags, Timestamp};
+use crate::{Address, Error, Id, Kind, PrivateKey, PublicKey, RecordFlags, Timestamp};
 use base64::prelude::*;
 use ed25519_dalek::Signature;
 use rand_core::{OsRng, RngCore};
@@ -131,20 +131,13 @@ impl Record {
         tags_bytes: &[u8],
         payload: &[u8],
     ) -> Result<Record, Error> {
-        let mut address: [u8; 48] = [0; 48];
-
-        address[ADDR_AUTHOR_KEY_RANGE].copy_from_slice(master_public_key.as_bytes().as_slice());
-
-        address[ADDR_KIND_RANGE].copy_from_slice(kind.0.to_le_bytes().as_slice());
-
-        address[ADDR_ORIG_TIMESTAMP_RANGE].copy_from_slice(timestamp.to_bytes().as_slice());
-
         let mut nonce: [u8; 8] = [0; 8];
         OsRng.fill_bytes(&mut nonce);
-        address[ADDR_NONCE_RANGE].copy_from_slice(nonce.as_slice());
+
+        let address = Address::from_parts(master_public_key, kind, timestamp, &nonce);
 
         Self::new_replacement(
-            &address,
+            address,
             timestamp,
             signing_private_key,
             tags_bytes,
@@ -163,7 +156,7 @@ impl Record {
     /// or if signing fails.
     #[allow(clippy::missing_panics_doc)]
     pub fn new_replacement(
-        address: &[u8; 48],
+        address: Address,
         timestamp: Timestamp,
         signing_private_key: &PrivateKey,
         tags_bytes: &[u8],
@@ -211,7 +204,7 @@ impl Record {
 
         bytes[FLAGS_RANGE].copy_from_slice(flags.bits().to_le_bytes().as_slice());
 
-        bytes[ADDRESS_RANGE].copy_from_slice(address);
+        bytes[ADDRESS_RANGE].copy_from_slice(address.as_bytes().as_slice());
 
         let public_key = signing_private_key.public();
         bytes[SIGNING_KEY_RANGE].copy_from_slice(public_key.as_bytes().as_slice());
@@ -260,6 +253,13 @@ impl Record {
         Id::from_bytes_no_verify(self.0[ID_RANGE].try_into().unwrap())
     }
 
+    /// Address
+    #[allow(clippy::missing_panics_doc)]
+    #[must_use]
+    pub fn address(&self) -> Address {
+        Address::from_bytes_no_verify(self.0[ADDRESS_RANGE].try_into().unwrap())
+    }
+
     /// Signing `PublicKey`
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
@@ -279,13 +279,6 @@ impl Record {
     #[must_use]
     pub fn kind(&self) -> Kind {
         Kind(u16::from_le_bytes(self.0[KIND_RANGE].try_into().unwrap()))
-    }
-
-    /// Address
-    #[allow(clippy::missing_panics_doc)]
-    #[must_use]
-    pub fn address(&self) -> &[u8; 48] {
-        self.0[ADDRESS_RANGE].try_into().unwrap()
     }
 
     /// Original Timestamp
@@ -392,23 +385,6 @@ const LEN_P_RANGE: Range<usize> = 204..208;
 const HEADER_LEN: usize = 208;
 const HASHABLE_RANGE: RangeFrom<usize> = 112..;
 const MAX_PAYLOAD_LEN: usize = 1_048_576 - HEADER_LEN;
-
-// ranges within IDs
-//const ID_START: usize = 64;
-//const ID_BE_TIMESTAMP_RANGE: Range<usize> = range_sub(TIMESTAMP_RANGE, ID_START);
-//const ID_ZERO_RANGE: Range<usize> = range_sub(ZERO_RANGE, ID_START);
-//const ID_HASH_RANGE: Range<usize> = range_sub(HASH_RANGE, ID_START);
-
-// ranges within Addresses
-const ADDR_START: usize = 144;
-const ADDR_AUTHOR_KEY_RANGE: Range<usize> = range_sub(AUTHOR_KEY_RANGE, ADDR_START);
-const ADDR_KIND_RANGE: Range<usize> = range_sub(KIND_RANGE, ADDR_START);
-const ADDR_ORIG_TIMESTAMP_RANGE: Range<usize> = range_sub(ORIG_TIMESTAMP_RANGE, ADDR_START);
-const ADDR_NONCE_RANGE: Range<usize> = range_sub(NONCE_RANGE, ADDR_START);
-
-const fn range_sub(range: Range<usize>, sub: usize) -> Range<usize> {
-    (range.start - sub)..(range.end - sub)
-}
 
 impl std::fmt::Display for Record {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

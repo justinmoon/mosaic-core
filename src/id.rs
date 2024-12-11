@@ -21,11 +21,8 @@ impl Id {
     /// Will return `Err` if the input is not valid base64, if it is not
     /// encoding 48 bytes, or if those bytes don't represent a valid Id.
     pub fn from_bytes(bytes: &[u8; 48]) -> Result<Id, Error> {
-        let id = Id(bytes.to_owned());
-
-        id.verify()?;
-
-        Ok(id)
+        Self::verify(bytes)?;
+        Ok(Id(bytes.to_owned()))
     }
 
     pub(crate) fn from_bytes_no_verify(bytes: &[u8; 48]) -> Id {
@@ -46,23 +43,16 @@ impl Id {
     /// encoding 48 bytes, or if those bytes don't represent a valid Id.
     pub fn from_printable(s: &str) -> Result<Id, Error> {
         let bytes = BASE64_STANDARD.decode(s)?;
-        let bytes: [u8; 48] = bytes.try_into().map_err(|_| Error::IdLength)?;
-
-        let id = Id(bytes);
-
-        id.verify()?;
-
-        Ok(id)
+        let bytes: [u8; 48] = bytes.try_into().map_err(|_| Error::ReferenceLength)?;
+        Self::verify(&bytes)?;
+        Ok(Id(bytes))
     }
 
     /// Extract timestamp from the Id
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the data is out of range for a `Timestamp`
     #[allow(clippy::missing_panics_doc)]
-    pub fn timestamp(&self) -> Result<Timestamp, Error> {
-        Timestamp::from_be_bytes(&self.0[0..6].try_into().unwrap())
+    #[must_use]
+    pub fn timestamp(&self) -> Timestamp {
+        Timestamp::from_be_bytes(&self.0[0..6].try_into().unwrap()).unwrap()
     }
 
     /// Extract the hash prefix from the Id
@@ -72,14 +62,14 @@ impl Id {
         self.0[8..48].try_into().unwrap()
     }
 
-    fn verify(&self) -> Result<(), Error> {
+    fn verify(bytes: &[u8; 48]) -> Result<(), Error> {
         // Verify zeros
-        if self.0[6] != 0 || self.0[7] != 0 {
+        if bytes[6] != 0 || bytes[7] != 0 {
             return Err(Error::IdZerosAreNotZero);
         }
 
         // Verify the timestamp
-        let _ = self.timestamp()?;
+        let _ = Timestamp::from_be_bytes(&bytes[0..6].try_into().unwrap())?;
 
         Ok(())
     }
@@ -105,7 +95,7 @@ mod test {
     fn test_id() {
         let printable = "AZO3sZiMAAApuH6dfAj9DHnCUgw0OIBW/tfZFR+CRgp2mJ6QeJiS7JKMU6/N4onu";
         let id = Id::from_printable(printable).unwrap();
-        let timestamp = id.timestamp().unwrap();
+        let timestamp = id.timestamp();
         assert_eq!(format!("{}", timestamp), "1733953689740");
     }
 }
