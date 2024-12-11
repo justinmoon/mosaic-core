@@ -1,5 +1,6 @@
 use crate::{Error, Kind, PublicKey, Timestamp};
 use base64::prelude::*;
+use rand_core::{OsRng, RngCore};
 
 /// An Address identifies a record group where the latest one in
 /// the group is the current valid record and the previous ones
@@ -30,6 +31,14 @@ impl Address {
 
     pub(crate) fn from_bytes_no_verify(bytes: &[u8; 48]) -> Address {
         Address(bytes.to_owned())
+    }
+
+    /// Create a new Address
+    #[must_use]
+    pub fn new(author_public_key: PublicKey, kind: Kind, timestamp: Timestamp) -> Address {
+        let mut nonce: [u8; 8] = [0; 8];
+        OsRng.fill_bytes(&mut nonce);
+        Self::from_parts(author_public_key, kind, timestamp, &nonce)
     }
 
     /// Create an Address from parts

@@ -1,7 +1,6 @@
 use crate::{Address, Error, Id, Kind, PrivateKey, PublicKey, RecordFlags, Timestamp};
 use base64::prelude::*;
 use ed25519_dalek::Signature;
-use rand_core::{OsRng, RngCore};
 use std::ops::{Range, RangeFrom};
 
 /*
@@ -120,26 +119,18 @@ impl Record {
     /// Returns an `Err` if any data is too long, if reserved flags are set,
     /// or if signing fails.
     #[allow(clippy::missing_panics_doc)]
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         signing_private_key: &PrivateKey,
-        master_public_key: PublicKey,
-        kind: Kind,
-        timestamp: Timestamp,
+        address: Address,
         flags: RecordFlags,
         app_flags: u16,
         tags_bytes: &[u8],
         payload: &[u8],
     ) -> Result<Record, Error> {
-        let mut nonce: [u8; 8] = [0; 8];
-        OsRng.fill_bytes(&mut nonce);
-
-        let address = Address::from_parts(master_public_key, kind, timestamp, &nonce);
-
         Self::new_replacement(
             signing_private_key,
             address,
-            timestamp,
+            address.timestamp(),
             flags,
             app_flags,
             tags_bytes,
@@ -421,6 +412,7 @@ mod test {
     #[test]
     fn test_record() {
         use rand::rngs::OsRng;
+
         let mut csprng = OsRng;
 
         let master_private_key = PrivateKey::generate(&mut csprng);
@@ -430,9 +422,11 @@ mod test {
 
         let r1 = Record::new(
             &signing_private_key,
-            master_public_key,
-            Kind::KEY_SCHEDULE,
-            Timestamp::now().unwrap(),
+            Address::new(
+                master_public_key,
+                Kind::KEY_SCHEDULE,
+                Timestamp::now().unwrap(),
+            ),
             RecordFlags::empty(),
             0,
             b"",
