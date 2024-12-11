@@ -122,8 +122,8 @@ impl Record {
     #[allow(clippy::missing_panics_doc)]
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        master_public_key: PublicKey,
         signing_private_key: &PrivateKey,
+        master_public_key: PublicKey,
         kind: Kind,
         timestamp: Timestamp,
         flags: RecordFlags,
@@ -137,13 +137,13 @@ impl Record {
         let address = Address::from_parts(master_public_key, kind, timestamp, &nonce);
 
         Self::new_replacement(
+            signing_private_key,
             address,
             timestamp,
-            signing_private_key,
-            tags_bytes,
-            payload,
             flags,
             app_flags,
+            tags_bytes,
+            payload,
         )
     }
 
@@ -156,13 +156,13 @@ impl Record {
     /// or if signing fails.
     #[allow(clippy::missing_panics_doc)]
     pub fn new_replacement(
+        signing_private_key: &PrivateKey,
         address: Address,
         timestamp: Timestamp,
-        signing_private_key: &PrivateKey,
-        tags_bytes: &[u8],
-        payload: &[u8],
         flags: RecordFlags,
         app_flags: u16,
+        tags_bytes: &[u8],
+        payload: &[u8],
     ) -> Result<Record, Error> {
         if payload.len() > MAX_PAYLOAD_LEN {
             return Err(Error::RecordTooLong);
@@ -429,8 +429,8 @@ mod test {
         let signing_private_key = PrivateKey::generate(&mut csprng);
 
         let r1 = Record::new(
-            master_public_key,
             &signing_private_key,
+            master_public_key,
             Kind::KEY_SCHEDULE,
             Timestamp::now().unwrap(),
             RecordFlags::empty(),
