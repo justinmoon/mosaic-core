@@ -49,7 +49,7 @@ impl Reference {
     }
 
     fn verify(bytes: &[u8; 48]) -> Result<(), Error> {
-        if bytes[0] & 0b10000000 == 0 {
+        if bytes[0] & (1<<7) == 0 {
             Id::verify(bytes)
         } else {
             Address::verify(bytes)
@@ -59,13 +59,13 @@ impl Reference {
     /// Is this an Id?
     #[must_use]
     pub fn is_id(&self) -> bool {
-        self.0[0] & 0b10000000 == 0
+        self.0[0] & (1<<7) == 0
     }
 
     /// Is this an Address?
     #[must_use]
     pub fn is_address(&self) -> bool {
-        self.0[0] & 0b10000000 != 0
+        self.0[0] & (1<<7) != 0
     }
 
     /// If an Id, returns it
