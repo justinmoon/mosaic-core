@@ -29,6 +29,9 @@ pub use record::Record;
 mod record_flags;
 pub use record_flags::RecordFlags;
 
+mod reference;
+pub use reference::Reference;
+
 mod server_bootstrap;
 pub use server_bootstrap::ServerBootstrap;
 

@@ -29,6 +29,10 @@ impl Id {
         Id(bytes.to_owned())
     }
 
+    pub(crate) fn from_owned_bytes_no_verify(bytes: [u8; 48]) -> Id {
+	Id(bytes)
+    }
+
     /// Convert an `Id` into a base64 `String`
     #[must_use]
     pub fn printable(&self) -> String {
@@ -62,7 +66,7 @@ impl Id {
         self.0[8..48].try_into().unwrap()
     }
 
-    fn verify(bytes: &[u8; 48]) -> Result<(), Error> {
+    pub(crate) fn verify(bytes: &[u8; 48]) -> Result<(), Error> {
         // Verify zeros
         if bytes[6] != 0 || bytes[7] != 0 {
             return Err(Error::IdZerosAreNotZero);
