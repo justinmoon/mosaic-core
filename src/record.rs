@@ -1,4 +1,4 @@
-use crate::{Address, Error, Id, Kind, PrivateKey, PublicKey, RecordFlags, Timestamp};
+use crate::{Address, Error, Id, Kind, PublicKey, RecordFlags, SecretKey, Timestamp};
 use base64::prelude::*;
 use ed25519_dalek::Signature;
 use std::ops::{Range, RangeFrom};
@@ -85,7 +85,7 @@ impl Record {
         let signature = Signature::from_slice(&self.0[SIG_RANGE])?;
         let digest = crate::crypto::Blake3 { h: hasher };
         signing_public_key
-            .0
+            .to_verifying_key()
             .verify_prehashed_strict(digest, Some(b"Mosaic"), &signature)?;
 
         // Verify the timestamp
@@ -114,7 +114,7 @@ impl Record {
     /// or if signing fails.
     #[allow(clippy::missing_panics_doc)]
     pub fn new(
-        signing_private_key: &PrivateKey,
+        signing_secret_key: &SecretKey,
         address: Address,
         flags: RecordFlags,
         app_flags: u16,
@@ -122,7 +122,7 @@ impl Record {
         payload: &[u8],
     ) -> Result<Record, Error> {
         Self::new_replacement(
-            signing_private_key,
+            signing_secret_key,
             address,
             address.timestamp(),
             flags,
@@ -141,7 +141,7 @@ impl Record {
     /// or if signing fails.
     #[allow(clippy::missing_panics_doc)]
     pub fn new_replacement(
-        signing_private_key: &PrivateKey,
+        signing_secret_key: &SecretKey,
         address: Address,
         timestamp: Timestamp,
         flags: RecordFlags,
@@ -191,7 +191,7 @@ impl Record {
 
         bytes[ADDRESS_RANGE].copy_from_slice(address.as_bytes().as_slice());
 
-        let public_key = signing_private_key.public();
+        let public_key = signing_secret_key.public();
         bytes[SIGNING_KEY_RANGE].copy_from_slice(public_key.as_bytes().as_slice());
 
         let mut truehash: [u8; 64] = [0; 64];
@@ -204,8 +204,8 @@ impl Record {
 
         // Sign
         let digest = crate::crypto::Blake3 { h: hasher };
-        let sig = signing_private_key
-            .0
+        let sig = signing_secret_key
+            .to_signing_key()
             .sign_prehashed(digest, Some(b"Mosaic"))?;
         bytes[SIG_RANGE].copy_from_slice(sig.to_bytes().as_slice());
 
@@ -420,13 +420,13 @@ mod test {
 
         let mut csprng = OsRng;
 
-        let master_private_key = PrivateKey::generate(&mut csprng);
-        let master_public_key = master_private_key.public();
+        let master_secret_key = SecretKey::generate(&mut csprng);
+        let master_public_key = master_secret_key.public();
 
-        let signing_private_key = PrivateKey::generate(&mut csprng);
+        let signing_secret_key = SecretKey::generate(&mut csprng);
 
         let r1 = Record::new(
-            &signing_private_key,
+            &signing_secret_key,
             Address::new(
                 master_public_key,
                 Kind::KEY_SCHEDULE,

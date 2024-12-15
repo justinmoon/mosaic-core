@@ -2,7 +2,8 @@
 
 #![warn(clippy::pedantic)]
 
-pub use ed25519_dalek;
+pub use ed25519_dalek::SigningKey as DalekSigningKey;
+pub use ed25519_dalek::VerifyingKey as DalekVerifyingKey;
 pub use mainline;
 pub use rand;
 
@@ -21,7 +22,7 @@ mod kind;
 pub use kind::Kind;
 
 mod keys;
-pub use keys::{PrivateKey, PublicKey};
+pub use keys::{PublicKey, SecretKey};
 
 mod record;
 pub use record::Record;

@@ -1,4 +1,4 @@
-use crate::{Error, PrivateKey, PublicKey};
+use crate::{Error, PublicKey, SecretKey};
 use bitflags::bitflags;
 use futures::StreamExt;
 use mainline::async_dht::AsyncDht;
@@ -165,10 +165,10 @@ impl UserBootstrap {
     /// # Errors
     ///
     /// Returns an `Err` if it couldn't write to the Dht
-    pub async fn write_to_dht(&self, private_key: PrivateKey, dht: &AsyncDht) -> Result<Id, Error> {
+    pub async fn write_to_dht(&self, secret_key: SecretKey, dht: &AsyncDht) -> Result<Id, Error> {
         let s = self.to_dht_string();
         let mutable_item = MutableItem::new(
-            private_key.0,
+            secret_key.to_signing_key(),
             mainline::Bytes::from(s.into_bytes()),
             self.1,
             Some(Bytes::from_static(DHT_USER_SALT)),
@@ -205,16 +205,16 @@ mod test {
 
     #[tokio::test]
     async fn test_user_bootstrap_dht() {
-        use crate::PrivateKey;
+        use crate::SecretKey;
 
         // Setup the DHT
         let dht = mainline::Dht::client().unwrap();
         let async_dht = dht.as_async();
 
         // User key
-        let private_b64 = "7AgCGv/SF6EThqVuoxU4edrKzqrzqD9yd4e11eTkGIQ=";
-        let private_key = PrivateKey::from_printable(private_b64).unwrap();
-        let public_key = private_key.public();
+        let secret_b64 = "7AgCGv/SF6EThqVuoxU4edrKzqrzqD9yd4e11eTkGIQ=";
+        let secret_key = SecretKey::from_printable(secret_b64).unwrap();
+        let public_key = secret_key.public();
 
         // Expected user bootstrap
         let s = "U\n3 7AgCGv/SF6EThqVuoxU4edrKzqrzqD9yd4e11eTkGIQ=\n1 vpYyesj/gbTHzY5X20fGrolobsTG4Ygim8X4DnfXxOU=";
@@ -226,12 +226,12 @@ mod test {
             .unwrap();
 
         if let Some(ubs) = maybe_fetched_user_bootstrap {
-            assert_eq!(ubs, expected_user_bootstrap)
+            assert_eq!(ubs, expected_user_bootstrap);
         } else {
             // It has expired from the DHT
             // Let's write it
             let id = expected_user_bootstrap
-                .write_to_dht(private_key, &async_dht)
+                .write_to_dht(secret_key, &async_dht)
                 .await
                 .unwrap();
             println!("Stored at {id}");
