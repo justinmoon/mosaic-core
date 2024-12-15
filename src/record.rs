@@ -69,8 +69,8 @@ impl Record {
             PublicKey::from_bytes(self.0[AUTHOR_KEY_RANGE].try_into().unwrap())?;
 
         // Compute the true hash
-	// (note we don't use fn full_hash() because we need to
-	//  reuse the hasher to verify the signature)
+        // (note we don't use fn full_hash() because we need to
+        //  reuse the hasher to verify the signature)
         let mut truehash: [u8; 64] = [0; 64];
         let mut hasher = blake3::Hasher::new();
         hasher.update(&self.0[HASHABLE_RANGE]);
@@ -238,7 +238,7 @@ impl Record {
         let mut hasher = blake3::Hasher::new();
         hasher.update(&self.0[HASHABLE_RANGE]);
         hasher.finalize_xof().fill(&mut truehash[..]);
-	truehash
+        truehash
     }
 
     /// Id
@@ -439,7 +439,7 @@ mod test {
         )
         .unwrap();
 
-        println!("{}", r1);
+        println!("{r1}");
 
         let r2 = Record::from_bytes(r1.as_bytes()).unwrap();
 

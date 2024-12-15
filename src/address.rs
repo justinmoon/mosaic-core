@@ -34,7 +34,7 @@ impl Address {
     }
 
     pub(crate) fn from_owned_bytes_no_verify(bytes: [u8; 48]) -> Address {
-	Address(bytes)
+        Address(bytes)
     }
 
     /// Create a new Address
@@ -57,8 +57,8 @@ impl Address {
         bytes[16..48].copy_from_slice(author_public_key.as_bytes().as_slice());
         bytes[8..16].copy_from_slice(nonce.as_slice());
         bytes[6..8].copy_from_slice(kind.0.to_le_bytes().as_slice());
-	let mut ts = timestamp.to_be_bytes();
-	ts[0] |= 0b10000000; // turn on MSBit
+        let mut ts = timestamp.to_be_bytes();
+        ts[0] |= 0b10000000; // turn on MSBit
         bytes[0..6].copy_from_slice(ts.as_slice());
         Address(bytes)
     }
@@ -86,8 +86,8 @@ impl Address {
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
     pub fn timestamp(&self) -> Timestamp {
-	let mut ts: [u8; 6] = self.0[0..6].try_into().unwrap();
-	ts[0] &= !0b10000000; // turn off MSbit
+        let mut ts: [u8; 6] = self.0[0..6].try_into().unwrap();
+        ts[0] &= !0b10000000; // turn off MSbit
         Timestamp::from_be_bytes(&ts).unwrap()
     }
 
@@ -114,8 +114,8 @@ impl Address {
 
     pub(crate) fn verify(bytes: &[u8; 48]) -> Result<(), Error> {
         // Verify the timestamp
-	let mut ts: [u8; 6] = bytes[0..6].try_into().unwrap();
-	ts[0] &= !0b10000000; // turn off MSbit
+        let mut ts: [u8; 6] = bytes[0..6].try_into().unwrap();
+        ts[0] &= !0b10000000; // turn off MSbit
         let _ = Timestamp::from_be_bytes(&ts)?;
 
         // Verify the public key
@@ -143,21 +143,21 @@ mod test {
 
     #[test]
     fn test_address() {
-	/*
-        let author_key_printable = "0Zmq+acq1dtzQX12EZx05pCJW1/iN/NZFdjcoylzrrU=";
-        let author_key = PublicKey::from_printable(author_key_printable).unwrap();
-	let addr0 = Address::new(
-	    author_key,
-	    Kind::KEY_SCHEDULE,
-	    Timestamp::from_unixtime(1733956467, 50).unwrap(),
-	);
-	println!("{}", addr0);
-	 */
+        /*
+            let author_key_printable = "0Zmq+acq1dtzQX12EZx05pCJW1/iN/NZFdjcoylzrrU=";
+            let author_key = PublicKey::from_printable(author_key_printable).unwrap();
+        let addr0 = Address::new(
+            author_key,
+            Kind::KEY_SCHEDULE,
+            Timestamp::from_unixtime(1733956467, 50).unwrap(),
+        );
+        println!("{}", addr0);
+         */
 
-	let printable = "gZO33GbKAQCYLNc7FNJMjNGZqvmnKtXbc0F9dhGcdOaQiVtf4jfzWRXY3KMpc661";
+        let printable = "gZO33GbKAQCYLNc7FNJMjNGZqvmnKtXbc0F9dhGcdOaQiVtf4jfzWRXY3KMpc661";
         let addr = Address::from_printable(printable).unwrap();
         let timestamp = addr.timestamp();
-        assert_eq!(format!("{}", timestamp), "1733956495050");
+        assert_eq!(format!("{timestamp}"), "1733956495050");
 
         let author_key_printable = "0Zmq+acq1dtzQX12EZx05pCJW1/iN/NZFdjcoylzrrU=";
         let author_key = PublicKey::from_printable(author_key_printable).unwrap();

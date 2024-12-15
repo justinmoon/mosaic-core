@@ -12,21 +12,18 @@ fn main() {
     let public_key = private_key.public();
 
     // Create a new Address for a new record
-    let address = Address::new(
-	public_key,
-	Kind::MICROBLOG_ROOT,
-	Timestamp::now().unwrap()
-    );
+    let address = Address::new(public_key, Kind::MICROBLOG_ROOT, Timestamp::now().unwrap());
 
     // Create a new record with that address
     let record = Record::new(
-	&private_key,
-	address,
-	RecordFlags::default(),
-	0,
-	b"",
-	b"Hello World!"
-    ).unwrap();
+        &private_key,
+        address,
+        RecordFlags::default(),
+        0,
+        b"",
+        b"Hello World!",
+    )
+    .unwrap();
 
     println!("{}", record);
 }

@@ -221,7 +221,7 @@ mod test {
         // Trial 10 seconds before and after the 4th leapsecond
         for u in 126230400 - 10..126230400 + 10 {
             let ts = Timestamp::from_unixtime(u, 500).unwrap();
-            println!("{:?}", ts); // so you can see the leap
+            println!("{ts:?}"); // so you can see the leap
             let (u2, _) = ts.to_unixtime();
             assert_eq!(u, u2);
         }

@@ -215,17 +215,16 @@ mod test {
             .await
             .unwrap();
 
-        match maybe_fetched_server_bootstrap {
-            Some(sbs) => assert_eq!(sbs, expected_server_bootstrap),
-            None => {
-                // It has expired from the DHT
-                // Let's write it
-                let id = expected_server_bootstrap
-                    .write_to_dht(private_key, &async_dht)
-                    .await
-                    .unwrap();
-                println!("Stored at {}", id);
-            }
+        if let Some(sbs) = maybe_fetched_server_bootstrap {
+            assert_eq!(sbs, expected_server_bootstrap)
+        } else {
+            // It has expired from the DHT
+            // Let's write it
+            let id = expected_server_bootstrap
+                .write_to_dht(private_key, &async_dht)
+                .await
+                .unwrap();
+            println!("Stored at {id}");
         }
     }
 }

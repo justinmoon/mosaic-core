@@ -49,57 +49,63 @@ impl Reference {
     }
 
     fn verify(bytes: &[u8; 48]) -> Result<(), Error> {
-	if bytes[0] & 0b10000000 == 0 {
-	    Id::verify(bytes)
-	} else {
-	    Address::verify(bytes)
-	}
+        if bytes[0] & 0b10000000 == 0 {
+            Id::verify(bytes)
+        } else {
+            Address::verify(bytes)
+        }
     }
 
     /// Is this an Id?
+    #[must_use]
     pub fn is_id(&self) -> bool {
-	self.0[0] & 0b10000000 == 0
+        self.0[0] & 0b10000000 == 0
     }
 
     /// Is this an Address?
+    #[must_use]
     pub fn is_address(&self) -> bool {
-	self.0[0] & 0b10000000 != 0
+        self.0[0] & 0b10000000 != 0
     }
 
     /// If an Id, returns it
+    #[must_use]
     pub fn as_id(&self) -> Option<Id> {
-	if self.is_id() {
-	    Some(Id::from_bytes_no_verify(&self.0))
-	} else {
-	    None
-	}
+        if self.is_id() {
+            Some(Id::from_bytes_no_verify(&self.0))
+        } else {
+            None
+        }
     }
 
     /// If an Address, returns it
+    #[must_use]
     pub fn as_address(&self) -> Option<Address> {
-	if self.is_address() {
-	    Some(Address::from_bytes_no_verify(&self.0))
-	} else {
-	    None
-	}
+        if self.is_address() {
+            Some(Address::from_bytes_no_verify(&self.0))
+        } else {
+            None
+        }
     }
 
     /// Convert into an Id without copying
+    #[must_use]
     pub fn into_id(self) -> Option<Id> {
-	if self.is_id() {
-	    Some(Id::from_owned_bytes_no_verify(self.0))
-	} else {
-	    None
-	}
+        if self.is_id() {
+            Some(Id::from_owned_bytes_no_verify(self.0))
+        } else {
+            None
+        }
     }
 
     /// Convert into an Address without copying
+    #[must_use]
     pub fn into_address(self) -> Option<Address> {
-	if self.is_address() {
-	    Some(Address::from_owned_bytes_no_verify(self.0))
-	} else {
-	    None
-	}
+        if self.is_address() {
+            Some(Address::from_owned_bytes_no_verify(self.0))
+        } else {
+            None
+        }
     }
 }
 
@@ -122,21 +128,21 @@ mod test {
     #[test]
     fn test_reference() {
         let printable = "AZO3sZiMAAApuH6dfAj9DHnCUgw0OIBW/tfZFR+CRgp2mJ6QeJiS7JKMU6/N4onu";
-	let refer = Reference::from_printable(printable).unwrap();
-	assert_eq!(refer.is_id(), true);
-	assert_eq!(refer.is_address(), false);
-	assert!(refer.as_id().is_some());
-	assert!(refer.as_address().is_none());
-	let id = refer.into_id().unwrap();
-	assert_eq!(format!("{}", id), printable);
+        let refer = Reference::from_printable(printable).unwrap();
+        assert!(refer.is_id());
+        assert!(!refer.is_address());
+        assert!(refer.as_id().is_some());
+        assert!(refer.as_address().is_none());
+        let id = refer.into_id().unwrap();
+        assert_eq!(format!("{id}"), printable);
 
-	let printable = "gZO33GbKAQCYLNc7FNJMjNGZqvmnKtXbc0F9dhGcdOaQiVtf4jfzWRXY3KMpc661";
-	let refer = Reference::from_printable(printable).unwrap();
-	assert_eq!(refer.is_id(), false);
-	assert_eq!(refer.is_address(), true);
-	assert!(refer.as_id().is_none());
-	assert!(refer.as_address().is_some());
-	let addr = refer.into_address().unwrap();
-	assert_eq!(format!("{}", addr), printable);
+        let printable = "gZO33GbKAQCYLNc7FNJMjNGZqvmnKtXbc0F9dhGcdOaQiVtf4jfzWRXY3KMpc661";
+        let refer = Reference::from_printable(printable).unwrap();
+        assert!(!refer.is_id());
+        assert!(refer.is_address());
+        assert!(refer.as_id().is_none());
+        assert!(refer.as_address().is_some());
+        let addr = refer.into_address().unwrap();
+        assert_eq!(format!("{addr}"), printable);
     }
 }

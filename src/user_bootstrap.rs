@@ -225,17 +225,16 @@ mod test {
             .await
             .unwrap();
 
-        match maybe_fetched_user_bootstrap {
-            Some(ubs) => assert_eq!(ubs, expected_user_bootstrap),
-            None => {
-                // It has expired from the DHT
-                // Let's write it
-                let id = expected_user_bootstrap
-                    .write_to_dht(private_key, &async_dht)
-                    .await
-                    .unwrap();
-                println!("Stored at {}", id);
-            }
+        if let Some(ubs) = maybe_fetched_user_bootstrap {
+            assert_eq!(ubs, expected_user_bootstrap)
+        } else {
+            // It has expired from the DHT
+            // Let's write it
+            let id = expected_user_bootstrap
+                .write_to_dht(private_key, &async_dht)
+                .await
+                .unwrap();
+            println!("Stored at {id}");
         }
     }
 }

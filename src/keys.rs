@@ -116,7 +116,7 @@ mod test {
         let private_key = PrivateKey::generate(&mut csprng);
         let public_key = private_key.public();
 
-        println!("public: {}", public_key);
-        println!("private: {}", private_key);
+        println!("public: {public_key}");
+        println!("private: {private_key}");
     }
 }

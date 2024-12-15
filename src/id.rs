@@ -30,7 +30,7 @@ impl Id {
     }
 
     pub(crate) fn from_owned_bytes_no_verify(bytes: [u8; 48]) -> Id {
-	Id(bytes)
+        Id(bytes)
     }
 
     /// Convert an `Id` into a base64 `String`
@@ -100,6 +100,6 @@ mod test {
         let printable = "AZO3sZiMAAApuH6dfAj9DHnCUgw0OIBW/tfZFR+CRgp2mJ6QeJiS7JKMU6/N4onu";
         let id = Id::from_printable(printable).unwrap();
         let timestamp = id.timestamp();
-        assert_eq!(format!("{}", timestamp), "1733953689740");
+        assert_eq!(format!("{timestamp}"), "1733953689740");
     }
 }
