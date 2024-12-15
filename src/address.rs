@@ -58,7 +58,7 @@ impl Address {
         bytes[8..16].copy_from_slice(nonce.as_slice());
         bytes[6..8].copy_from_slice(kind.0.to_le_bytes().as_slice());
         let mut ts = timestamp.to_be_bytes();
-        ts[0] |= 1<<7; // turn on MSBit
+        ts[0] |= 1 << 7; // turn on MSBit
         bytes[0..6].copy_from_slice(ts.as_slice());
         Address(bytes)
     }
@@ -87,7 +87,7 @@ impl Address {
     #[must_use]
     pub fn timestamp(&self) -> Timestamp {
         let mut ts: [u8; 6] = self.0[0..6].try_into().unwrap();
-        ts[0] &= !(1<<7); // turn off MSbit
+        ts[0] &= !(1 << 7); // turn off MSbit
         Timestamp::from_be_bytes(&ts).unwrap()
     }
 
@@ -115,7 +115,7 @@ impl Address {
     pub(crate) fn verify(bytes: &[u8; 48]) -> Result<(), Error> {
         // Verify the timestamp
         let mut ts: [u8; 6] = bytes[0..6].try_into().unwrap();
-        ts[0] &= !(1<<7); // turn off MSbit
+        ts[0] &= !(1 << 7); // turn off MSbit
         let _ = Timestamp::from_be_bytes(&ts)?;
 
         // Verify the public key

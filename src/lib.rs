@@ -1,4 +1,37 @@
-//! Mosaic core is a core library supporting the Mosaic protocol
+//! Mosaic core is a core library supporting the
+//! [Mosaic protocol](https://stevefarroll.github.io/mosaic-spec/)
+//!
+//! # Identity
+//!
+//! Users and Servers are known by their [`PublicKey`] proven by their
+//! [`SecretKey`]. These are 32-byte packed data, and have to be unpacked
+//! into their [`DalekVerifyingKey`] or [`DalekSigningKey`] respectively in
+//! order to do cryptographic operations.
+//!
+//! # Bootstrap
+//!
+//! Server endpoints (URLs) are bootstrapped from Mainline DHT with
+//! a [`ServerBootstrap`] record.
+//!
+//! The servers that a user uses are bootstrapped from Mainline DHT
+//! with a [`UserBootstrap`] record.
+//!
+//! # Records
+//!
+//! [`Record`]s are of various [`Kind`]s and have [`Timestamp`]s and
+//! [`RecordFlags`].
+//!
+//! [`Record`]s may have `Tags` (TBD) of varying [`TagType`]s.
+//!
+//! Every [`Record`] has an [`Id`] and an [`Address`] by which it can be
+//! referred. In some contexts a [`Record`] may be referred to by either,
+//! and so a [`Reference`] type can be used when it is unknown which kind
+//! of reference is specified.
+//!
+//! # Protocol
+//!
+//! Protocol `Messages` (TBD) are sent between client and server over some
+//! transport. Many client-initiated messages include a `Filter` (TBD)
 
 #![warn(clippy::pedantic)]
 

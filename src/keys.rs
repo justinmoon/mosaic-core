@@ -2,7 +2,8 @@ use crate::Error;
 use crate::{DalekSigningKey, DalekVerifyingKey};
 use base64::prelude::*;
 
-/// A public signing key representing a server or user, whether a master key or subkey.
+/// A public signing key representing a server or user,
+/// whether a master key or subkey.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct PublicKey([u8; 32]);
 
@@ -19,7 +20,8 @@ impl PublicKey {
     /// From a `DalekVerifyingKey`
     ///
     /// This packs into 32 byte data
-    #[must_use] pub fn from_verifying_key(verifying_key: &DalekVerifyingKey) -> PublicKey {
+    #[must_use]
+    pub fn from_verifying_key(verifying_key: &DalekVerifyingKey) -> PublicKey {
         PublicKey(verifying_key.as_bytes().to_owned())
     }
 
@@ -87,7 +89,8 @@ impl SecretKey {
     /// From a `DalekSigningKey`
     ///
     /// This packs into 32 byte data
-    #[must_use] pub fn from_signing_key(signing_key: &DalekSigningKey) -> SecretKey {
+    #[must_use]
+    pub fn from_signing_key(signing_key: &DalekSigningKey) -> SecretKey {
         SecretKey(signing_key.to_bytes())
     }
 
