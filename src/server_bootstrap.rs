@@ -1,8 +1,7 @@
 use crate::{Error, PublicKey, SecretKey};
-use futures::StreamExt;
 use http::Uri;
 use mainline::async_dht::AsyncDht;
-use mainline::{Bytes, Id, MutableItem};
+use mainline::{Id, MutableItem};
 
 pub const DHT_SERVER_SALT: &[u8] = b"msb24";
 
@@ -20,7 +19,7 @@ impl ServerBootstrap {
     /// Create a new `ServerBootstrap` object
     #[must_use]
     pub fn new() -> ServerBootstrap {
-        ServerBootstrap(vec![], 1)
+        ServerBootstrap(vec![], 0)
     }
 
     /// Build a `ServerBootstrap` from a `Vec<Uri>` and a sequence number
@@ -118,34 +117,17 @@ impl ServerBootstrap {
         pubkey: PublicKey,
         dht: &AsyncDht,
     ) -> Result<Option<ServerBootstrap>, Error> {
-        let mut recv_stream = dht
-            .get_mutable(
-                pubkey.as_bytes(),
-                Some(Bytes::from_static(DHT_SERVER_SALT)),
-                None,
-            )
-            .map_err(|_| Error::DhtWasShutdown)?;
+        let mutable_item = dht
+            .get_mutable_most_recent(pubkey.as_bytes(), Some(DHT_SERVER_SALT))
+            .await;
 
-        let mut output: Option<ServerBootstrap> = None;
-        while let Some(mutable) = recv_stream.next().await {
-            // FIXME - do we have to check the signature ourselves?
-            let Ok(s) = std::str::from_utf8(mutable.value().as_ref()) else {
-                continue;
-            };
-            let Ok(sb) = ServerBootstrap::from_dht_string_and_seq(s, *mutable.seq()) else {
-                continue;
-            };
-            match output {
-                None => output = Some(sb),
-                Some(ref out) => {
-                    if out.seq() < sb.seq() {
-                        output = Some(sb);
-                    }
-                }
-            }
+        if let Some(mi) = mutable_item {
+            let s = std::str::from_utf8(mi.value().as_ref())?;
+            let sb = ServerBootstrap::from_dht_string_and_seq(s, mi.seq())?;
+            Ok(Some(sb))
+        } else {
+            Ok(None)
         }
-
-        Ok(output)
     }
 
     /// Try to write a `ServerBootstrap` record for the given `PublicKey`
@@ -155,17 +137,30 @@ impl ServerBootstrap {
     /// # Errors
     ///
     /// Returns an `Err` if it couldn't write to the Dht
-    pub async fn write_to_dht(&self, secret_key: SecretKey, dht: &AsyncDht) -> Result<Id, Error> {
+    pub async fn write_to_dht(
+        &mut self,
+        secret_key: SecretKey,
+        dht: &AsyncDht,
+    ) -> Result<Id, Error> {
         let s = self.to_dht_string();
+
+        let cas = if self.1 == 0 {
+            // never written before
+            None
+        } else {
+            Some(self.1)
+        };
+        self.1 += 1; // bump the sequence number
+
         let mutable_item = MutableItem::new(
             secret_key.to_signing_key(),
-            mainline::Bytes::from(s.into_bytes()),
+            s.as_bytes(),
             self.1,
-            Some(Bytes::from_static(DHT_SERVER_SALT)),
+            Some(DHT_SERVER_SALT),
         );
 
         let id = dht
-            .put_mutable(mutable_item)
+            .put_mutable(mutable_item, cas)
             .await
             .map_err(|_| Error::DhtPutError)?;
 
@@ -208,7 +203,7 @@ mod test {
 
         // Expected server bootstrap
         let s = "S\nwss://test.example\nhttps://192.168.99.99";
-        let expected_server_bootstrap = ServerBootstrap::from_dht_string_and_seq(s, 3).unwrap();
+        let mut expected_server_bootstrap = ServerBootstrap::from_dht_string_and_seq(s, 3).unwrap();
 
         // Fetch ServerBootstrap for this server
         let maybe_fetched_server_bootstrap = ServerBootstrap::read_from_dht(public_key, &async_dht)
@@ -217,6 +212,7 @@ mod test {
 
         if let Some(sbs) = maybe_fetched_server_bootstrap {
             assert_eq!(sbs, expected_server_bootstrap);
+	    println!("Found expected server bootstrap, seq = {}", sbs.1);
         } else {
             // It has expired from the DHT
             // Let's write it
@@ -224,7 +220,7 @@ mod test {
                 .write_to_dht(secret_key, &async_dht)
                 .await
                 .unwrap();
-            println!("Stored at {id}");
+            println!("Stored new at {id}");
         }
     }
 }
