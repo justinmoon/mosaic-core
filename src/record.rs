@@ -424,8 +424,6 @@ mod test {
 
         let mut csprng = OsRng;
 
-        let master_secret_key = SecretKey::generate(&mut csprng);
-
         let signing_secret_key = SecretKey::generate(&mut csprng);
 
         let r1 = Record::new(
