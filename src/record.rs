@@ -106,8 +106,6 @@ impl Record {
 
     /// Create a new `Record` from component parts.
     ///
-    /// Creates a new unique address.
-    ///
     /// # Errors
     ///
     /// Returns an `Err` if any data is too long, if reserved flags are set,
@@ -115,16 +113,30 @@ impl Record {
     #[allow(clippy::missing_panics_doc)]
     pub fn new(
         signing_secret_key: &SecretKey,
-        address: Address,
+	kind: Kind,
+	deterministic_key: Option<&[u8]>,
+	timestamp: Timestamp,
         flags: RecordFlags,
         app_flags: u16,
         tags_bytes: &[u8],
         payload: &[u8],
     ) -> Result<Record, Error> {
+	let address = match deterministic_key {
+	    Some(key) => Address::new_deterministic(
+		signing_secret_key.public(),
+		kind,
+		key,
+	    ),
+	    None => Address::new_random(
+		signing_secret_key.public(),
+		kind,
+	    ),
+	};
+
         Self::new_replacement(
             signing_secret_key,
             address,
-            address.timestamp(),
+	    timestamp,
             flags,
             app_flags,
             tags_bytes,
@@ -276,13 +288,6 @@ impl Record {
         Kind(u16::from_le_bytes(self.0[KIND_RANGE].try_into().unwrap()))
     }
 
-    /// Original Timestamp
-    #[allow(clippy::missing_panics_doc)]
-    #[must_use]
-    pub fn original_timestamp(&self) -> Timestamp {
-        Timestamp::from_bytes(self.0[ORIG_TIMESTAMP_RANGE].try_into().unwrap()).unwrap()
-    }
-
     /// Nonce
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
@@ -366,9 +371,8 @@ const HASH_RANGE: Range<usize> = 72..112;
 const SIGNING_KEY_RANGE: Range<usize> = 112..144;
 
 const ADDRESS_RANGE: Range<usize> = 144..192;
-const ORIG_TIMESTAMP_RANGE: Range<usize> = 144..150;
-const KIND_RANGE: Range<usize> = 150..152;
-const NONCE_RANGE: Range<usize> = 152..160;
+const NONCE_RANGE: Range<usize> = 144..158;
+const KIND_RANGE: Range<usize> = 158..160;
 const AUTHOR_KEY_RANGE: Range<usize> = 160..192;
 
 const FLAGS_RANGE: Range<usize> = 192..194;
@@ -421,17 +425,14 @@ mod test {
         let mut csprng = OsRng;
 
         let master_secret_key = SecretKey::generate(&mut csprng);
-        let master_public_key = master_secret_key.public();
 
         let signing_secret_key = SecretKey::generate(&mut csprng);
 
         let r1 = Record::new(
             &signing_secret_key,
-            Address::new(
-                master_public_key,
-                Kind::KEY_SCHEDULE,
-                Timestamp::now().unwrap(),
-            ),
+            Kind::KEY_SCHEDULE,
+	    None,
+            Timestamp::now().unwrap(),
             RecordFlags::empty(),
             0,
             b"",

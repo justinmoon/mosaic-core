@@ -222,7 +222,7 @@ mod test {
 
         if let Some(ubs) = maybe_fetched_user_bootstrap {
             assert_eq!(ubs, expected_user_bootstrap);
-	    println!("Found expected user bootstrap, seq = {}", ubs.1);
+            println!("Found expected user bootstrap, seq = {}", ubs.1);
         } else {
             // It has expired from the DHT
             // Let's write it

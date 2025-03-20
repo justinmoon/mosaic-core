@@ -1,4 +1,4 @@
-use crate::{Error, Kind, PublicKey, Timestamp};
+use crate::{Error, Kind, PublicKey};
 use base64::prelude::*;
 use rand_core::{OsRng, RngCore};
 
@@ -37,29 +37,36 @@ impl Address {
         Address(bytes)
     }
 
-    /// Create a new Address
+    /// Create a new Address with a random nonce
     #[must_use]
-    pub fn new(author_public_key: PublicKey, kind: Kind, timestamp: Timestamp) -> Address {
-        let mut nonce: [u8; 8] = [0; 8];
+    pub fn new_random(author_public_key: PublicKey, kind: Kind) -> Address {
+        let mut nonce: [u8; 14] = [0; 14];
         OsRng.fill_bytes(&mut nonce);
-        Self::from_parts(author_public_key, kind, timestamp, &nonce)
+        Self::from_parts(author_public_key, kind, &nonce)
+    }
+
+    /// Create a new Address with a deterministic nonce.
+    ///
+    /// This uses the first 14 bytes of BLAKE3 taken on the deterministic
+    /// key to generate the nonce.
+    #[must_use]
+    pub fn new_deterministic(author_public_key: PublicKey, kind: Kind, key: &[u8]) -> Address {
+        let mut truehash: [u8; 64] = [0; 64];
+        let mut hasher = blake3::Hasher::new();
+        hasher.update(key);
+        hasher.finalize_xof().fill(&mut truehash[..]);
+
+        Self::from_parts(author_public_key, kind, truehash[0..14].try_into().unwrap())
     }
 
     /// Create an Address from parts
     #[must_use]
-    pub fn from_parts(
-        author_public_key: PublicKey,
-        kind: Kind,
-        timestamp: Timestamp,
-        nonce: &[u8; 8],
-    ) -> Address {
+    pub fn from_parts(author_public_key: PublicKey, kind: Kind, nonce: &[u8; 14]) -> Address {
         let mut bytes: [u8; 48] = [0; 48];
         bytes[16..48].copy_from_slice(author_public_key.as_bytes().as_slice());
-        bytes[8..16].copy_from_slice(nonce.as_slice());
-        bytes[6..8].copy_from_slice(kind.0.to_le_bytes().as_slice());
-        let mut ts = timestamp.to_be_bytes();
-        ts[0] |= 1 << 7; // turn on MSBit
-        bytes[0..6].copy_from_slice(ts.as_slice());
+        bytes[14..16].copy_from_slice(kind.0.to_le_bytes().as_slice());
+        bytes[0..14].copy_from_slice(nonce.as_slice());
+        bytes[0] |= 1 << 7; // Turn on MSBit
         Address(bytes)
     }
 
@@ -82,27 +89,18 @@ impl Address {
         Ok(Address(bytes))
     }
 
-    /// Extract timestamp from the Address
-    #[allow(clippy::missing_panics_doc)]
-    #[must_use]
-    pub fn timestamp(&self) -> Timestamp {
-        let mut ts: [u8; 6] = self.0[0..6].try_into().unwrap();
-        ts[0] &= !(1 << 7); // turn off MSbit
-        Timestamp::from_be_bytes(&ts).unwrap()
-    }
-
     /// Extract kind from the Address
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
     pub fn kind(&self) -> Kind {
-        Kind(u16::from_le_bytes(self.0[6..8].try_into().unwrap()))
+        Kind(u16::from_le_bytes(self.0[14..16].try_into().unwrap()))
     }
 
     /// Extract nonce from the Address
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
-    pub fn nonce(&self) -> &[u8; 8] {
-        self.0[8..16].try_into().unwrap()
+    pub fn nonce(&self) -> &[u8; 14] {
+        self.0[0..14].try_into().unwrap()
     }
 
     /// Extract Author master public key from the Address
@@ -113,11 +111,6 @@ impl Address {
     }
 
     pub(crate) fn verify(bytes: &[u8; 48]) -> Result<(), Error> {
-        // Verify the timestamp
-        let mut ts: [u8; 6] = bytes[0..6].try_into().unwrap();
-        ts[0] &= !(1 << 7); // turn off MSbit
-        let _ = Timestamp::from_be_bytes(&ts)?;
-
         // Verify the public key
         let _ = PublicKey::from_bytes(bytes[16..48].try_into().unwrap())?;
 
@@ -143,26 +136,21 @@ mod test {
 
     #[test]
     fn test_address() {
-        /*
-            let author_key_printable = "0Zmq+acq1dtzQX12EZx05pCJW1/iN/NZFdjcoylzrrU=";
-            let author_key = PublicKey::from_printable(author_key_printable).unwrap();
-        let addr0 = Address::new(
-            author_key,
-            Kind::KEY_SCHEDULE,
-            Timestamp::from_unixtime(1733956467, 50).unwrap(),
-        );
-        println!("{}", addr0);
-         */
-
-        let printable = "gZO33GbKAQCYLNc7FNJMjNGZqvmnKtXbc0F9dhGcdOaQiVtf4jfzWRXY3KMpc661";
-        let addr = Address::from_printable(printable).unwrap();
-        let timestamp = addr.timestamp();
-        assert_eq!(format!("{timestamp}"), "1733956495050");
-
         let author_key_printable = "0Zmq+acq1dtzQX12EZx05pCJW1/iN/NZFdjcoylzrrU=";
         let author_key = PublicKey::from_printable(author_key_printable).unwrap();
-        assert_eq!(addr.author_public_key(), author_key);
 
+	/* generate this test:
+        let addr0 = Address::new_deterministic(
+            author_key,
+            Kind::KEY_SCHEDULE,
+	    b"hello world",
+        );
+        println!("{}", addr0);
+	*/
+	let printable = "10mB76cKDIgLjYwZhdABANGZqvmnKtXbc0F9dhGcdOaQiVtf4jfzWRXY3KMpc661";
+
+        let addr = Address::from_printable(printable).unwrap();
+        assert_eq!(addr.author_public_key(), author_key);
         assert_eq!(addr.kind(), Kind::KEY_SCHEDULE);
     }
 }

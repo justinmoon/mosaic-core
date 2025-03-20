@@ -8,16 +8,12 @@ fn main() {
     // Create a new identity. This is your secret key
     let secret_key = SecretKey::generate(&mut csprng);
 
-    // Compute your public key from your secret key
-    let public_key = secret_key.public();
-
-    // Create a new Address for a new record
-    let address = Address::new(public_key, Kind::MICROBLOG_ROOT, Timestamp::now().unwrap());
-
-    // Create a new record with that address
+    // Create a new record
     let record = Record::new(
         &secret_key,
-        address,
+	Kind::MICROBLOG_ROOT,
+	None,
+	Timestamp::now().unwrap(),
         RecordFlags::default(),
         0,
         b"",

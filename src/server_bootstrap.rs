@@ -212,7 +212,7 @@ mod test {
 
         if let Some(sbs) = maybe_fetched_server_bootstrap {
             assert_eq!(sbs, expected_server_bootstrap);
-	    println!("Found expected server bootstrap, seq = {}", sbs.1);
+            println!("Found expected server bootstrap, seq = {}", sbs.1);
         } else {
             // It has expired from the DHT
             // Let's write it
