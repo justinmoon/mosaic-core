@@ -86,12 +86,15 @@ impl UserBootstrap {
     /// Encode a `UserBootstrap` into a DHT value string
     #[must_use]
     pub fn to_dht_string(&self) -> String {
+        use std::fmt::Write;
+
         let mut output: String = "U".to_string();
         for (usage, server_key) in &self.0 {
-            output.push('\n');
-            output.push(usage.as_printable_byte() as char);
-            output.push(' ');
-            output.push_str(&format!("{server_key}"));
+            let _ = write!(
+                output,
+                "\n{} {server_key}",
+                usage.as_printable_byte() as char
+            );
         }
         output
     }
@@ -101,8 +104,14 @@ impl UserBootstrap {
     /// # Errors
     ///
     /// Returns an `Err` if the string does not match the specification
+    #[allow(clippy::string_slice)]
     pub fn from_dht_string_and_seq(s: &str, seq: i64) -> Result<UserBootstrap, Error> {
         if !s.starts_with("U\n") || s.len() < 4 {
+            return Err(InnerError::InvalidUserBootstrapString.into());
+        }
+
+        // Must have a char index a position 2 (not inside a unicode multibyte)
+        if !s.char_indices().any(|(i, _c)| i == 2) {
             return Err(InnerError::InvalidUserBootstrapString.into());
         }
 
@@ -132,7 +141,7 @@ impl UserBootstrap {
             .await;
 
         if let Some(mi) = mutable_item {
-            let s = std::str::from_utf8(mi.value().as_ref())?;
+            let s = std::str::from_utf8(mi.value())?;
             let ub = UserBootstrap::from_dht_string_and_seq(s, mi.seq())?;
             Ok(Some(ub))
         } else {

@@ -49,6 +49,7 @@ impl Address {
     ///
     /// This uses the first 14 bytes of BLAKE3 taken on the deterministic
     /// key to generate the nonce.
+    #[allow(clippy::missing_panics_doc)]
     #[must_use]
     pub fn new_deterministic(author_public_key: PublicKey, kind: Kind, key: &[u8]) -> Address {
         let mut truehash: [u8; 64] = [0; 64];

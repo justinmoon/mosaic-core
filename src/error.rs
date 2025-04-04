@@ -52,10 +52,10 @@ pub enum InnerError {
     /// ID zeroes are not zero
     IdZerosAreNotZero,
 
-    /// Invalid ServerBootstrap String
+    /// Invalid `ServerBootstrap` String
     InvalidServerBootstrapString,
 
-    /// Invalid UserBootstrap String
+    /// Invalid `UserBootstrap` String
     InvalidUserBootstrapString,
 
     /// Invalid URI
@@ -164,8 +164,9 @@ impl Into<Error> for InnerError {
 
 // Use this to avoid complex type qualification
 impl InnerError {
-    /// Convert an InnerError into an Error
+    /// Convert an `InnerError` into an `Error`
     #[track_caller]
+    #[must_use]
     pub fn into_err(self) -> Error {
         Error {
             inner: self,
