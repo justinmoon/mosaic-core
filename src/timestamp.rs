@@ -1,4 +1,4 @@
-use crate::Error;
+use crate::{Error, InnerError};
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -44,10 +44,10 @@ impl Timestamp {
     /// expiry date, or the resultant timestamp is numerically out of valid range.
     pub fn from_unixtime(seconds: u64, microseconds: u64) -> Result<Timestamp, Error> {
         if microseconds >= 1000 {
-            return Err(Error::TimeOutOfRange);
+            return Err(InnerError::TimeOutOfRange.into());
         }
         if seconds > LEAP_SECONDS_EXPIRE {
-            return Err(Error::TimeIsBeyondLeapSecondData);
+            return Err(InnerError::TimeIsBeyondLeapSecondData.into());
         }
 
         let leaps = iana_ntp_leap_seconds()
@@ -58,14 +58,14 @@ impl Timestamp {
 
         let millis: u64 = seconds
             .checked_add(leaps)
-            .ok_or(Error::TimeOutOfRange)?
+            .ok_or(InnerError::TimeOutOfRange.into_err())?
             .checked_mul(1000)
-            .ok_or(Error::TimeOutOfRange)?
+            .ok_or(InnerError::TimeOutOfRange.into_err())?
             .checked_add(microseconds)
-            .ok_or(Error::TimeOutOfRange)?;
+            .ok_or(InnerError::TimeOutOfRange.into_err())?;
 
         if millis > 0x7FFF_FFFF_FFFF {
-            Err(Error::TimeOutOfRange)
+            Err(InnerError::TimeOutOfRange.into())
         } else {
             Ok(Timestamp(millis))
         }
@@ -123,7 +123,7 @@ impl Timestamp {
         let millis: u64 = u64::from_le_bytes(eight);
 
         if millis > 0x7FFF_FFFF_FFFF {
-            Err(Error::TimeOutOfRange)
+            Err(InnerError::TimeOutOfRange.into())
         } else {
             Ok(Timestamp(millis))
         }
@@ -140,7 +140,7 @@ impl Timestamp {
         let millis: u64 = u64::from_be_bytes(eight);
 
         if millis > 0x7FFF_FFFF_FFFF {
-            Err(Error::TimeOutOfRange)
+            Err(InnerError::TimeOutOfRange.into())
         } else {
             Ok(Timestamp(millis))
         }

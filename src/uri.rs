@@ -1,4 +1,4 @@
-use crate::Error;
+use crate::{Error, InnerError};
 use http::uri::PathAndQuery;
 use http::Uri;
 
@@ -9,10 +9,10 @@ pub(crate) fn clean_uri(uri: Uri) -> Result<Uri, Error> {
     parts.path_and_query = Some(PathAndQuery::from_static(PATH_AND_QUERY));
     if let Some(ref s) = parts.scheme {
         if s.as_str() != "wss" && s.as_str() != "https" {
-            return Err(Error::BadScheme(s.as_str().to_owned()));
+            return Err(InnerError::BadScheme(s.as_str().to_owned()).into());
         }
     } else {
-        return Err(Error::MissingScheme);
+        return Err(InnerError::MissingScheme.into());
     }
     let uri = Uri::from_parts(parts)?;
     Ok(uri)

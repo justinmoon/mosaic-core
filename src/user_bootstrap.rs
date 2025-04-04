@@ -1,4 +1,4 @@
-use crate::{Error, PublicKey, SecretKey};
+use crate::{Error, InnerError, PublicKey, SecretKey};
 use bitflags::bitflags;
 use mainline::async_dht::AsyncDht;
 use mainline::{Id, MutableItem};
@@ -103,7 +103,7 @@ impl UserBootstrap {
     /// Returns an `Err` if the string does not match the specification
     pub fn from_dht_string_and_seq(s: &str, seq: i64) -> Result<UserBootstrap, Error> {
         if !s.starts_with("U\n") || s.len() < 4 {
-            return Err(Error::InvalidUserBootstrapString);
+            return Err(InnerError::InvalidUserBootstrapString.into());
         }
 
         let mut output: Vec<(ServerUsage, PublicKey)> = vec![];
@@ -172,7 +172,7 @@ impl UserBootstrap {
         let id = dht
             .put_mutable(mutable_item, cas)
             .await
-            .map_err(|_| Error::DhtPutError)?;
+            .map_err(|_| InnerError::DhtPutError.into_err())?;
 
         Ok(id)
     }

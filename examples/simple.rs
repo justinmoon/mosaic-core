@@ -11,9 +11,9 @@ fn main() {
     // Create a new record
     let record = Record::new(
         &secret_key,
-	Kind::MICROBLOG_ROOT,
-	None,
-	Timestamp::now().unwrap(),
+        Kind::MICROBLOG_ROOT,
+        None,
+        Timestamp::now().unwrap(),
         RecordFlags::default(),
         0,
         b"",

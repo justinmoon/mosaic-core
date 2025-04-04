@@ -1,4 +1,4 @@
-use crate::{Error, Kind, PublicKey};
+use crate::{Error, InnerError, Kind, PublicKey};
 use base64::prelude::*;
 use rand_core::{OsRng, RngCore};
 
@@ -84,7 +84,9 @@ impl Address {
     /// encoding 48 bytes, or if those bytes don't represent a valid Address.
     pub fn from_printable(s: &str) -> Result<Address, Error> {
         let bytes = BASE64_STANDARD.decode(s)?;
-        let bytes: [u8; 48] = bytes.try_into().map_err(|_| Error::ReferenceLength)?;
+        let bytes: [u8; 48] = bytes
+            .try_into()
+            .map_err(|_| InnerError::ReferenceLength.into_err())?;
         Self::verify(&bytes)?;
         Ok(Address(bytes))
     }
@@ -139,15 +141,15 @@ mod test {
         let author_key_printable = "0Zmq+acq1dtzQX12EZx05pCJW1/iN/NZFdjcoylzrrU=";
         let author_key = PublicKey::from_printable(author_key_printable).unwrap();
 
-	/* generate this test:
-        let addr0 = Address::new_deterministic(
-            author_key,
-            Kind::KEY_SCHEDULE,
-	    b"hello world",
-        );
-        println!("{}", addr0);
-	*/
-	let printable = "10mB76cKDIgLjYwZhdABANGZqvmnKtXbc0F9dhGcdOaQiVtf4jfzWRXY3KMpc661";
+        /* generate this test:
+            let addr0 = Address::new_deterministic(
+                author_key,
+                Kind::KEY_SCHEDULE,
+            b"hello world",
+            );
+            println!("{}", addr0);
+        */
+        let printable = "10mB76cKDIgLjYwZhdABANGZqvmnKtXbc0F9dhGcdOaQiVtf4jfzWRXY3KMpc661";
 
         let addr = Address::from_printable(printable).unwrap();
         assert_eq!(addr.author_public_key(), author_key);

@@ -1,4 +1,4 @@
-use crate::{Address, Error, Id, Kind, PublicKey, RecordFlags, SecretKey, Timestamp};
+use crate::{Address, Error, Id, InnerError, Kind, PublicKey, RecordFlags, SecretKey, Timestamp};
 use base64::prelude::*;
 use ed25519_dalek::Signature;
 use std::ops::{Range, RangeFrom};
@@ -53,13 +53,13 @@ impl Record {
     pub fn verify(&self) -> Result<(), Error> {
         // Verify all lengths
         if self.0.len() > 1_048_576 {
-            return Err(Error::RecordTooLong);
+            return Err(InnerError::RecordTooLong.into());
         }
         if self.0.len() < HEADER_LEN {
-            return Err(Error::RecordTooShort);
+            return Err(InnerError::RecordTooShort.into());
         }
         if HEADER_LEN + self.tags_padded_len() + self.payload_padded_len() != self.0.len() {
-            return Err(Error::RecordSectionLengthMismatch);
+            return Err(InnerError::RecordSectionLengthMismatch.into());
         }
 
         // Verify PublicKey validity
@@ -78,7 +78,7 @@ impl Record {
 
         // Compare the start of the true hash to the claimed hash
         if truehash[..40] != self.0[HASH_RANGE] {
-            return Err(Error::HashMismatch);
+            return Err(InnerError::HashMismatch.into());
         }
 
         // Verify the signature
@@ -94,11 +94,11 @@ impl Record {
         // Verify reserved flags are 0
         let flags = self.flags();
         if flags & RecordFlags::all() != RecordFlags::empty() {
-            return Err(Error::ReservedFlagsUsed);
+            return Err(InnerError::ReservedFlagsUsed.into());
         }
 
         if self.0[70] != 0 || self.0[71] != 0 {
-            return Err(Error::IdZerosAreNotZero);
+            return Err(InnerError::IdZerosAreNotZero.into());
         }
 
         Ok(())
@@ -113,30 +113,23 @@ impl Record {
     #[allow(clippy::missing_panics_doc)]
     pub fn new(
         signing_secret_key: &SecretKey,
-	kind: Kind,
-	deterministic_key: Option<&[u8]>,
-	timestamp: Timestamp,
+        kind: Kind,
+        deterministic_key: Option<&[u8]>,
+        timestamp: Timestamp,
         flags: RecordFlags,
         app_flags: u16,
         tags_bytes: &[u8],
         payload: &[u8],
     ) -> Result<Record, Error> {
-	let address = match deterministic_key {
-	    Some(key) => Address::new_deterministic(
-		signing_secret_key.public(),
-		kind,
-		key,
-	    ),
-	    None => Address::new_random(
-		signing_secret_key.public(),
-		kind,
-	    ),
-	};
+        let address = match deterministic_key {
+            Some(key) => Address::new_deterministic(signing_secret_key.public(), kind, key),
+            None => Address::new_random(signing_secret_key.public(), kind),
+        };
 
         Self::new_replacement(
             signing_secret_key,
             address,
-	    timestamp,
+            timestamp,
             flags,
             app_flags,
             tags_bytes,
@@ -162,10 +155,10 @@ impl Record {
         payload: &[u8],
     ) -> Result<Record, Error> {
         if payload.len() > MAX_PAYLOAD_LEN {
-            return Err(Error::RecordTooLong);
+            return Err(InnerError::RecordTooLong.into());
         }
         if tags_bytes.len() > 65_536 {
-            return Err(Error::RecordTooLong);
+            return Err(InnerError::RecordTooLong.into());
         }
 
         let payload_padded_len = (payload.len() + 7) & !7;
@@ -173,11 +166,11 @@ impl Record {
 
         let len = HEADER_LEN + payload_padded_len + tags_padded_len;
         if len > 1_048_576 {
-            return Err(Error::RecordTooLong);
+            return Err(InnerError::RecordTooLong.into());
         }
 
         if flags & RecordFlags::all() != RecordFlags::empty() {
-            return Err(Error::ReservedFlagsUsed);
+            return Err(InnerError::ReservedFlagsUsed.into());
         }
 
         let mut bytes = vec![0; len];
@@ -429,7 +422,7 @@ mod test {
         let r1 = Record::new(
             &signing_secret_key,
             Kind::KEY_SCHEDULE,
-	    None,
+            None,
             Timestamp::now().unwrap(),
             RecordFlags::empty(),
             0,

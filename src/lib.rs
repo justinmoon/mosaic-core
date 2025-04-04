@@ -46,7 +46,7 @@ pub use address::Address;
 mod crypto;
 
 mod error;
-pub use error::Error;
+pub use error::{Error, InnerError};
 
 mod id;
 pub use id::Id;
