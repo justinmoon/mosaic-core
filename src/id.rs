@@ -1,4 +1,4 @@
-use crate::{Error, Timestamp};
+use crate::{Error, InnerError, Timestamp};
 use base64::prelude::*;
 
 /// An Id uniquely identifies a record.
@@ -47,7 +47,9 @@ impl Id {
     /// encoding 48 bytes, or if those bytes don't represent a valid Id.
     pub fn from_printable(s: &str) -> Result<Id, Error> {
         let bytes = BASE64_STANDARD.decode(s)?;
-        let bytes: [u8; 48] = bytes.try_into().map_err(|_| Error::ReferenceLength)?;
+        let bytes: [u8; 48] = bytes
+            .try_into()
+            .map_err(|_| InnerError::ReferenceLength.into_err())?;
         Self::verify(&bytes)?;
         Ok(Id(bytes))
     }
@@ -69,7 +71,7 @@ impl Id {
     pub(crate) fn verify(bytes: &[u8; 48]) -> Result<(), Error> {
         // Verify zeros
         if bytes[6] != 0 || bytes[7] != 0 {
-            return Err(Error::IdZerosAreNotZero);
+            return Err(InnerError::IdZerosAreNotZero.into());
         }
 
         // Verify the timestamp

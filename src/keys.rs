@@ -1,5 +1,5 @@
-use crate::Error;
 use crate::{DalekSigningKey, DalekVerifyingKey};
+use crate::{Error, InnerError};
 use base64::prelude::*;
 
 /// A public signing key representing a server or user,
@@ -62,7 +62,9 @@ impl PublicKey {
     /// or if the bytes do not represent a `CompressedEdwardsY` point on the curve.
     pub fn from_printable(s: &str) -> Result<PublicKey, Error> {
         let bytes = BASE64_STANDARD.decode(s)?;
-        let bytes: [u8; 32] = bytes.try_into().map_err(|_| Error::KeyLength)?;
+        let bytes: [u8; 32] = bytes
+            .try_into()
+            .map_err(|_| InnerError::KeyLength.into_err())?;
         Self::from_bytes(&bytes)
     }
 }
@@ -74,6 +76,8 @@ impl std::fmt::Display for PublicKey {
 }
 
 /// A secret signing key
+// WARNING: do not implement Eq or PartialEq without a constant time algorithm
+#[allow(missing_copy_implementations)]
 #[derive(Debug, Clone)]
 pub struct SecretKey([u8; 32]);
 
@@ -136,7 +140,9 @@ impl SecretKey {
     /// Will return `Err` if the input is not valid base64, if it is not 32 bytes long.
     pub fn from_printable(s: &str) -> Result<SecretKey, Error> {
         let bytes = BASE64_STANDARD.decode(s)?;
-        let bytes: [u8; 32] = bytes.try_into().map_err(|_| Error::KeyLength)?;
+        let bytes: [u8; 32] = bytes
+            .try_into()
+            .map_err(|_| InnerError::KeyLength.into_err())?;
         Ok(Self::from_bytes(&bytes))
     }
 }

@@ -1,9 +1,9 @@
-use crate::{Error, PublicKey, SecretKey};
+use crate::{Error, InnerError, PublicKey, SecretKey};
 use http::Uri;
 use mainline::async_dht::AsyncDht;
 use mainline::{Id, MutableItem};
 
-pub const DHT_SERVER_SALT: &[u8] = b"msb24";
+pub(crate) const DHT_SERVER_SALT: &[u8] = b"msb24";
 
 /// Bootstrap record for a server
 #[derive(Debug, Clone)]
@@ -77,10 +77,11 @@ impl ServerBootstrap {
     /// Encode a `ServerBootstrap` into a DHT value string
     #[must_use]
     pub fn to_dht_string(&self) -> String {
+        use std::fmt::Write;
+
         let mut output: String = "S".to_string();
         for uri in &self.0 {
-            output.push('\n');
-            output.push_str(&format!("{uri}"));
+            let _ = write!(output, "\n{uri}");
             let _ = output.pop(); // trailing slash must be removed
         }
         output
@@ -91,9 +92,15 @@ impl ServerBootstrap {
     /// # Errors
     ///
     /// Returns an `Err` if the string does not match the specification.
+    #[allow(clippy::string_slice)]
     pub fn from_dht_string_and_seq(s: &str, seq: i64) -> Result<ServerBootstrap, Error> {
         if !s.starts_with("S\n") || s.len() < 4 {
-            return Err(Error::InvalidServerBootstrapString);
+            return Err(InnerError::InvalidServerBootstrapString.into());
+        }
+
+        // Must have a char index a position 2 (not inside a unicode multibyte)
+        if !s.char_indices().any(|(i, _c)| i == 2) {
+            return Err(InnerError::InvalidUserBootstrapString.into());
         }
 
         let mut output: Vec<Uri> = vec![];
@@ -122,7 +129,7 @@ impl ServerBootstrap {
             .await;
 
         if let Some(mi) = mutable_item {
-            let s = std::str::from_utf8(mi.value().as_ref())?;
+            let s = std::str::from_utf8(mi.value())?;
             let sb = ServerBootstrap::from_dht_string_and_seq(s, mi.seq())?;
             Ok(Some(sb))
         } else {
@@ -162,7 +169,7 @@ impl ServerBootstrap {
         let id = dht
             .put_mutable(mutable_item, cas)
             .await
-            .map_err(|_| Error::DhtPutError)?;
+            .map_err(|_| InnerError::DhtPutError.into_err())?;
 
         Ok(id)
     }

@@ -1,4 +1,4 @@
-use crate::{Error, Kind, PublicKey};
+use crate::{Error, InnerError, Kind, PublicKey};
 use base64::prelude::*;
 use rand_core::{OsRng, RngCore};
 
@@ -49,11 +49,12 @@ impl Address {
     ///
     /// This uses the first 14 bytes of BLAKE3 taken on the deterministic
     /// key to generate the nonce.
+    #[allow(clippy::missing_panics_doc)]
     #[must_use]
     pub fn new_deterministic(author_public_key: PublicKey, kind: Kind, key: &[u8]) -> Address {
         let mut truehash: [u8; 64] = [0; 64];
         let mut hasher = blake3::Hasher::new();
-        hasher.update(key);
+        let _ = hasher.update(key);
         hasher.finalize_xof().fill(&mut truehash[..]);
 
         Self::from_parts(author_public_key, kind, truehash[0..14].try_into().unwrap())
@@ -84,7 +85,9 @@ impl Address {
     /// encoding 48 bytes, or if those bytes don't represent a valid Address.
     pub fn from_printable(s: &str) -> Result<Address, Error> {
         let bytes = BASE64_STANDARD.decode(s)?;
-        let bytes: [u8; 48] = bytes.try_into().map_err(|_| Error::ReferenceLength)?;
+        let bytes: [u8; 48] = bytes
+            .try_into()
+            .map_err(|_| InnerError::ReferenceLength.into_err())?;
         Self::verify(&bytes)?;
         Ok(Address(bytes))
     }
@@ -139,15 +142,15 @@ mod test {
         let author_key_printable = "0Zmq+acq1dtzQX12EZx05pCJW1/iN/NZFdjcoylzrrU=";
         let author_key = PublicKey::from_printable(author_key_printable).unwrap();
 
-	/* generate this test:
-        let addr0 = Address::new_deterministic(
-            author_key,
-            Kind::KEY_SCHEDULE,
-	    b"hello world",
-        );
-        println!("{}", addr0);
-	*/
-	let printable = "10mB76cKDIgLjYwZhdABANGZqvmnKtXbc0F9dhGcdOaQiVtf4jfzWRXY3KMpc661";
+        /* generate this test:
+            let addr0 = Address::new_deterministic(
+                author_key,
+                Kind::KEY_SCHEDULE,
+            b"hello world",
+            );
+            println!("{}", addr0);
+        */
+        let printable = "10mB76cKDIgLjYwZhdABANGZqvmnKtXbc0F9dhGcdOaQiVtf4jfzWRXY3KMpc661";
 
         let addr = Address::from_printable(printable).unwrap();
         assert_eq!(addr.author_public_key(), author_key);

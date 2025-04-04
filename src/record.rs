@@ -1,4 +1,4 @@
-use crate::{Address, Error, Id, Kind, PublicKey, RecordFlags, SecretKey, Timestamp};
+use crate::{Address, Error, Id, InnerError, Kind, PublicKey, RecordFlags, SecretKey, Timestamp};
 use base64::prelude::*;
 use ed25519_dalek::Signature;
 use std::ops::{Range, RangeFrom};
@@ -53,13 +53,13 @@ impl Record {
     pub fn verify(&self) -> Result<(), Error> {
         // Verify all lengths
         if self.0.len() > 1_048_576 {
-            return Err(Error::RecordTooLong);
+            return Err(InnerError::RecordTooLong.into());
         }
         if self.0.len() < HEADER_LEN {
-            return Err(Error::RecordTooShort);
+            return Err(InnerError::RecordTooShort.into());
         }
         if HEADER_LEN + self.tags_padded_len() + self.payload_padded_len() != self.0.len() {
-            return Err(Error::RecordSectionLengthMismatch);
+            return Err(InnerError::RecordSectionLengthMismatch.into());
         }
 
         // Verify PublicKey validity
@@ -73,12 +73,12 @@ impl Record {
         //  reuse the hasher to verify the signature)
         let mut truehash: [u8; 64] = [0; 64];
         let mut hasher = blake3::Hasher::new();
-        hasher.update(&self.0[HASHABLE_RANGE]);
+        let _ = hasher.update(&self.0[HASHABLE_RANGE]);
         hasher.finalize_xof().fill(&mut truehash[..]);
 
         // Compare the start of the true hash to the claimed hash
         if truehash[..40] != self.0[HASH_RANGE] {
-            return Err(Error::HashMismatch);
+            return Err(InnerError::HashMismatch.into());
         }
 
         // Verify the signature
@@ -94,11 +94,11 @@ impl Record {
         // Verify reserved flags are 0
         let flags = self.flags();
         if flags & RecordFlags::all() != RecordFlags::empty() {
-            return Err(Error::ReservedFlagsUsed);
+            return Err(InnerError::ReservedFlagsUsed.into());
         }
 
         if self.0[70] != 0 || self.0[71] != 0 {
-            return Err(Error::IdZerosAreNotZero);
+            return Err(InnerError::IdZerosAreNotZero.into());
         }
 
         Ok(())
@@ -111,36 +111,20 @@ impl Record {
     /// Returns an `Err` if any data is too long, if reserved flags are set,
     /// or if signing fails.
     #[allow(clippy::missing_panics_doc)]
-    pub fn new(
-        signing_secret_key: &SecretKey,
-	kind: Kind,
-	deterministic_key: Option<&[u8]>,
-	timestamp: Timestamp,
-        flags: RecordFlags,
-        app_flags: u16,
-        tags_bytes: &[u8],
-        payload: &[u8],
-    ) -> Result<Record, Error> {
-	let address = match deterministic_key {
-	    Some(key) => Address::new_deterministic(
-		signing_secret_key.public(),
-		kind,
-		key,
-	    ),
-	    None => Address::new_random(
-		signing_secret_key.public(),
-		kind,
-	    ),
-	};
+    pub fn new(signing_secret_key: &SecretKey, parts: &RecordParts) -> Result<Record, Error> {
+        let address = match parts.deterministic_key {
+            Some(key) => Address::new_deterministic(signing_secret_key.public(), parts.kind, key),
+            None => Address::new_random(signing_secret_key.public(), parts.kind),
+        };
 
         Self::new_replacement(
             signing_secret_key,
             address,
-	    timestamp,
-            flags,
-            app_flags,
-            tags_bytes,
-            payload,
+            parts.timestamp,
+            parts.flags,
+            parts.app_flags,
+            parts.tags_bytes,
+            parts.payload,
         )
     }
 
@@ -162,10 +146,10 @@ impl Record {
         payload: &[u8],
     ) -> Result<Record, Error> {
         if payload.len() > MAX_PAYLOAD_LEN {
-            return Err(Error::RecordTooLong);
+            return Err(InnerError::RecordTooLong.into());
         }
         if tags_bytes.len() > 65_536 {
-            return Err(Error::RecordTooLong);
+            return Err(InnerError::RecordTooLong.into());
         }
 
         let payload_padded_len = (payload.len() + 7) & !7;
@@ -173,11 +157,11 @@ impl Record {
 
         let len = HEADER_LEN + payload_padded_len + tags_padded_len;
         if len > 1_048_576 {
-            return Err(Error::RecordTooLong);
+            return Err(InnerError::RecordTooLong.into());
         }
 
         if flags & RecordFlags::all() != RecordFlags::empty() {
-            return Err(Error::ReservedFlagsUsed);
+            return Err(InnerError::ReservedFlagsUsed.into());
         }
 
         let mut bytes = vec![0; len];
@@ -208,7 +192,7 @@ impl Record {
 
         let mut truehash: [u8; 64] = [0; 64];
         let mut hasher = blake3::Hasher::new();
-        hasher.update(&bytes[HASHABLE_RANGE]);
+        let _ = hasher.update(&bytes[HASHABLE_RANGE]);
         hasher.finalize_xof().fill(&mut truehash[..]);
         bytes[HASH_RANGE].copy_from_slice(&truehash[..40]);
 
@@ -248,7 +232,7 @@ impl Record {
     pub fn full_hash(&self) -> [u8; 64] {
         let mut truehash: [u8; 64] = [0; 64];
         let mut hasher = blake3::Hasher::new();
-        hasher.update(&self.0[HASHABLE_RANGE]);
+        let _ = hasher.update(&self.0[HASHABLE_RANGE]);
         hasher.finalize_xof().fill(&mut truehash[..]);
         truehash
     }
@@ -405,6 +389,31 @@ impl std::fmt::Display for Record {
     }
 }
 
+/// The parts of a Record
+#[derive(Debug)]
+pub struct RecordParts<'a> {
+    /// The kind of record
+    pub kind: Kind,
+
+    /// Optionally a deterministic key for the Address
+    pub deterministic_key: Option<&'a [u8]>,
+
+    /// The time
+    pub timestamp: Timestamp,
+
+    /// The flags
+    pub flags: RecordFlags,
+
+    /// Application flags
+    pub app_flags: u16,
+
+    /// The tags
+    pub tags_bytes: &'a [u8],
+
+    /// The payload
+    pub payload: &'a [u8],
+}
+
 #[cfg(test)]
 mod test {
     use crate::*;
@@ -428,13 +437,15 @@ mod test {
 
         let r1 = Record::new(
             &signing_secret_key,
-            Kind::KEY_SCHEDULE,
-	    None,
-            Timestamp::now().unwrap(),
-            RecordFlags::empty(),
-            0,
-            b"",
-            b"hello world",
+            &RecordParts {
+                kind: Kind::KEY_SCHEDULE,
+                deterministic_key: None,
+                timestamp: Timestamp::now().unwrap(),
+                flags: RecordFlags::empty(),
+                app_flags: 0,
+                tags_bytes: b"",
+                payload: b"hello world",
+            },
         )
         .unwrap();
 

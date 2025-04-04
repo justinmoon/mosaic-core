@@ -45,6 +45,7 @@ impl std::fmt::Display for TagType {
     }
 }
 
+/// A single Tag
 #[derive(Debug, Clone)]
 pub struct Tag(Vec<u8>);
 
@@ -165,7 +166,7 @@ impl Tag {
     #[must_use]
     #[allow(clippy::cast_possible_truncation)]
     pub fn new_content_segment_url(url: &str, offset: u32) -> Tag {
-        let len: usize = 8 + url.as_bytes().len();
+        let len: usize = 8 + url.len();
         let mut bytes: Vec<u8> = vec![0; len];
         bytes[0..2].copy_from_slice(TagType::CONTENT_SEGMENT_URL.0.to_le_bytes().as_slice());
         bytes[2] = len as u8;
@@ -178,7 +179,7 @@ impl Tag {
     #[must_use]
     #[allow(clippy::cast_possible_truncation)]
     pub fn new_content_segment_image(url: &str, offset: u32) -> Tag {
-        let len: usize = 8 + url.as_bytes().len();
+        let len: usize = 8 + url.len();
         let mut bytes: Vec<u8> = vec![0; len];
         bytes[0..2].copy_from_slice(TagType::CONTENT_SEGMENT_IMAGE.0.to_le_bytes().as_slice());
         bytes[2] = len as u8;
@@ -191,7 +192,7 @@ impl Tag {
     #[must_use]
     #[allow(clippy::cast_possible_truncation)]
     pub fn new_content_segment_video(url: &str, offset: u32) -> Tag {
-        let len: usize = 8 + url.as_bytes().len();
+        let len: usize = 8 + url.len();
         let mut bytes: Vec<u8> = vec![0; len];
         bytes[0..2].copy_from_slice(TagType::CONTENT_SEGMENT_VIDEO.0.to_le_bytes().as_slice());
         bytes[2] = len as u8;

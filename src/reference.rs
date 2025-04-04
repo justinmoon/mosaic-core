@@ -1,4 +1,4 @@
-use crate::{Address, Error, Id};
+use crate::{Address, Error, Id, InnerError};
 use base64::prelude::*;
 
 /// A Reference (either an Id or an Address)
@@ -43,7 +43,9 @@ impl Reference {
     /// encoding 48 bytes, or if those bytes don't represent a valid Reference.
     pub fn from_printable(s: &str) -> Result<Reference, Error> {
         let bytes = BASE64_STANDARD.decode(s)?;
-        let bytes: [u8; 48] = bytes.try_into().map_err(|_| Error::ReferenceLength)?;
+        let bytes: [u8; 48] = bytes
+            .try_into()
+            .map_err(|_| InnerError::ReferenceLength.into_err())?;
         Self::verify(&bytes)?;
         Ok(Reference(bytes))
     }

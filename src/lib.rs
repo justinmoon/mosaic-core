@@ -34,6 +34,24 @@
 //! transport. Many client-initiated messages include a `Filter` (TBD)
 
 #![warn(clippy::pedantic)]
+#![deny(
+    missing_debug_implementations,
+    trivial_numeric_casts,
+    clippy::string_slice,
+    unused_import_braces,
+    unused_results,
+    unused_lifetimes,
+    unused_labels,
+    unused_extern_crates,
+    non_ascii_idents,
+    keyword_idents,
+    deprecated_in_future,
+    unstable_features,
+    single_use_lifetimes,
+    unreachable_pub,
+    missing_copy_implementations,
+    missing_docs
+)]
 
 pub use ed25519_dalek::SigningKey as DalekSigningKey;
 pub use ed25519_dalek::VerifyingKey as DalekVerifyingKey;
@@ -46,7 +64,7 @@ pub use address::Address;
 mod crypto;
 
 mod error;
-pub use error::Error;
+pub use error::{Error, InnerError};
 
 mod id;
 pub use id::Id;
@@ -58,7 +76,7 @@ mod keys;
 pub use keys::{PublicKey, SecretKey};
 
 mod record;
-pub use record::Record;
+pub use record::{Record, RecordParts};
 
 mod record_flags;
 pub use record_flags::RecordFlags;

@@ -11,13 +11,15 @@ fn main() {
     // Create a new record
     let record = Record::new(
         &secret_key,
-	Kind::MICROBLOG_ROOT,
-	None,
-	Timestamp::now().unwrap(),
-        RecordFlags::default(),
-        0,
-        b"",
-        b"Hello World!",
+        &RecordParts {
+            kind: Kind::MICROBLOG_ROOT,
+            deterministic_key: None,
+            timestamp: Timestamp::now().unwrap(),
+            flags: RecordFlags::default(),
+            app_flags: 0,
+            tags_bytes: b"",
+            payload: b"Hello World!",
+        },
     )
     .unwrap();
 
