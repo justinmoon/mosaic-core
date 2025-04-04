@@ -76,7 +76,7 @@ mod keys;
 pub use keys::{PublicKey, SecretKey};
 
 mod record;
-pub use record::Record;
+pub use record::{Record, RecordParts};
 
 mod record_flags;
 pub use record_flags::RecordFlags;

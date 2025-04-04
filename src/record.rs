@@ -111,29 +111,20 @@ impl Record {
     /// Returns an `Err` if any data is too long, if reserved flags are set,
     /// or if signing fails.
     #[allow(clippy::missing_panics_doc)]
-    pub fn new(
-        signing_secret_key: &SecretKey,
-        kind: Kind,
-        deterministic_key: Option<&[u8]>,
-        timestamp: Timestamp,
-        flags: RecordFlags,
-        app_flags: u16,
-        tags_bytes: &[u8],
-        payload: &[u8],
-    ) -> Result<Record, Error> {
-        let address = match deterministic_key {
-            Some(key) => Address::new_deterministic(signing_secret_key.public(), kind, key),
-            None => Address::new_random(signing_secret_key.public(), kind),
+    pub fn new(signing_secret_key: &SecretKey, parts: &RecordParts) -> Result<Record, Error> {
+        let address = match parts.deterministic_key {
+            Some(key) => Address::new_deterministic(signing_secret_key.public(), parts.kind, key),
+            None => Address::new_random(signing_secret_key.public(), parts.kind),
         };
 
         Self::new_replacement(
             signing_secret_key,
             address,
-            timestamp,
-            flags,
-            app_flags,
-            tags_bytes,
-            payload,
+            parts.timestamp,
+            parts.flags,
+            parts.app_flags,
+            parts.tags_bytes,
+            parts.payload,
         )
     }
 
@@ -398,6 +389,31 @@ impl std::fmt::Display for Record {
     }
 }
 
+/// The parts of a Record
+#[derive(Debug)]
+pub struct RecordParts<'a> {
+    /// The kind of record
+    pub kind: Kind,
+
+    /// Optionally a deterministic key for the Address
+    pub deterministic_key: Option<&'a [u8]>,
+
+    /// The time
+    pub timestamp: Timestamp,
+
+    /// The flags
+    pub flags: RecordFlags,
+
+    /// Application flags
+    pub app_flags: u16,
+
+    /// The tags
+    pub tags_bytes: &'a [u8],
+
+    /// The payload
+    pub payload: &'a [u8],
+}
+
 #[cfg(test)]
 mod test {
     use crate::*;
@@ -421,13 +437,15 @@ mod test {
 
         let r1 = Record::new(
             &signing_secret_key,
-            Kind::KEY_SCHEDULE,
-            None,
-            Timestamp::now().unwrap(),
-            RecordFlags::empty(),
-            0,
-            b"",
-            b"hello world",
+            &RecordParts {
+                kind: Kind::KEY_SCHEDULE,
+                deterministic_key: None,
+                timestamp: Timestamp::now().unwrap(),
+                flags: RecordFlags::empty(),
+                app_flags: 0,
+                tags_bytes: b"",
+                payload: b"hello world",
+            },
         )
         .unwrap();
 
