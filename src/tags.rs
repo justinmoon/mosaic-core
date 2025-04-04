@@ -45,6 +45,7 @@ impl std::fmt::Display for TagType {
     }
 }
 
+/// A single Tag
 #[derive(Debug, Clone)]
 pub struct Tag(Vec<u8>);
 

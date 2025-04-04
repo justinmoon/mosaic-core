@@ -5,21 +5,21 @@ use digest::{FixedOutput, HashMarker, OutputSizeUser, Reset, Update};
 /// This is a Blake3 Hasher implementing the traits required for use in
 /// the ed25519 construction in place of SHA-512
 #[derive(Clone)]
-pub struct Blake3 {
+pub(crate) struct Blake3 {
     pub(crate) h: blake3::Hasher,
 }
 
 impl Update for Blake3 {
     #[inline]
     fn update(&mut self, data: &[u8]) {
-        self.h.update(data.as_ref());
+        let _ = self.h.update(data.as_ref());
     }
 }
 
 impl Reset for Blake3 {
     #[inline]
     fn reset(&mut self) {
-        self.h.reset();
+        let _ = self.h.reset();
     }
 }
 

@@ -76,6 +76,8 @@ impl std::fmt::Display for PublicKey {
 }
 
 /// A secret signing key
+// WARNING: do not implement Eq or PartialEq without a constant time algorithm
+#[allow(missing_copy_implementations)]
 #[derive(Debug, Clone)]
 pub struct SecretKey([u8; 32]);
 

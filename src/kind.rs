@@ -3,11 +3,22 @@
 pub struct Kind(pub u16);
 
 impl Kind {
+    /// Key Schedule Record
     pub const KEY_SCHEDULE: Kind = Kind(0x1);
+
+    /// Profile Record
     pub const PROFILE: Kind = Kind(0x2);
+
+    /// Microblog Root Post Record
     pub const MICROBLOG_ROOT: Kind = Kind(0x3);
+
+    /// Reply Comment Record
     pub const REPLY_COMMENT: Kind = Kind(0x4);
+
+    /// Blog Post Record
     pub const BLOG_POST: Kind = Kind(0x5);
+
+    /// Chat Message Record
     pub const CHAT_MESSAGE: Kind = Kind(0x6);
 }
 

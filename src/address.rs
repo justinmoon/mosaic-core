@@ -53,7 +53,7 @@ impl Address {
     pub fn new_deterministic(author_public_key: PublicKey, kind: Kind, key: &[u8]) -> Address {
         let mut truehash: [u8; 64] = [0; 64];
         let mut hasher = blake3::Hasher::new();
-        hasher.update(key);
+        let _ = hasher.update(key);
         hasher.finalize_xof().fill(&mut truehash[..]);
 
         Self::from_parts(author_public_key, kind, truehash[0..14].try_into().unwrap())

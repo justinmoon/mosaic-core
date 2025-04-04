@@ -3,7 +3,7 @@ use http::Uri;
 use mainline::async_dht::AsyncDht;
 use mainline::{Id, MutableItem};
 
-pub const DHT_SERVER_SALT: &[u8] = b"msb24";
+pub(crate) const DHT_SERVER_SALT: &[u8] = b"msb24";
 
 /// Bootstrap record for a server
 #[derive(Debug, Clone)]

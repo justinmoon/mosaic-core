@@ -3,7 +3,7 @@ use bitflags::bitflags;
 use mainline::async_dht::AsyncDht;
 use mainline::{Id, MutableItem};
 
-pub const DHT_USER_SALT: &[u8] = b"mub24";
+pub(crate) const DHT_USER_SALT: &[u8] = b"mub24";
 
 /// Server usage flags
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -73,7 +73,7 @@ impl Record {
         //  reuse the hasher to verify the signature)
         let mut truehash: [u8; 64] = [0; 64];
         let mut hasher = blake3::Hasher::new();
-        hasher.update(&self.0[HASHABLE_RANGE]);
+        let _ = hasher.update(&self.0[HASHABLE_RANGE]);
         hasher.finalize_xof().fill(&mut truehash[..]);
 
         // Compare the start of the true hash to the claimed hash
@@ -201,7 +201,7 @@ impl Record {
 
         let mut truehash: [u8; 64] = [0; 64];
         let mut hasher = blake3::Hasher::new();
-        hasher.update(&bytes[HASHABLE_RANGE]);
+        let _ = hasher.update(&bytes[HASHABLE_RANGE]);
         hasher.finalize_xof().fill(&mut truehash[..]);
         bytes[HASH_RANGE].copy_from_slice(&truehash[..40]);
 
@@ -241,7 +241,7 @@ impl Record {
     pub fn full_hash(&self) -> [u8; 64] {
         let mut truehash: [u8; 64] = [0; 64];
         let mut hasher = blake3::Hasher::new();
-        hasher.update(&self.0[HASHABLE_RANGE]);
+        let _ = hasher.update(&self.0[HASHABLE_RANGE]);
         hasher.finalize_xof().fill(&mut truehash[..]);
         truehash
     }

@@ -25,42 +25,89 @@ impl std::fmt::Display for Error {
 /// Errors that can occur in this crate
 #[derive(Debug)]
 pub enum InnerError {
+    /// Unsupported URI scheme
     BadScheme(String),
+
+    /// Base64 decode error
     Base64(base64::DecodeError),
+
+    /// DHT put error
     DhtPutError,
+
+    /// DHT was shutdown
     DhtWasShutdown,
+
+    /// ed25519 error
     Ed25519(ed25519_dalek::ed25519::Error),
+
+    /// Hash mismatch
     HashMismatch,
+
+    /// Key data length is not 32 bytes
     KeyLength,
+
+    /// General error
     General(String),
+
+    /// ID zeroes are not zero
     IdZerosAreNotZero,
+
+    /// Invalid ServerBootstrap String
     InvalidServerBootstrapString,
+
+    /// Invalid UserBootstrap String
     InvalidUserBootstrapString,
+
+    /// Invalid URI
     InvalidUri(http::uri::InvalidUri),
+
+    /// Invalid URI parts
     InvalidUriParts(http::uri::InvalidUriParts),
+
+    /// Missing scheme
     MissingScheme,
+
+    /// Record section length mismatch
     RecordSectionLengthMismatch,
+
+    /// Record too long
     RecordTooLong,
+
+    /// Record too short
     RecordTooShort,
+
+    /// Reference data length is not 48 bytes
     ReferenceLength,
+
+    /// Reserved flags used
     ReservedFlagsUsed,
+
+    /// Reserved space used
     ReservedSpaceUsed,
+
+    /// Time error
     SystemTime(std::time::SystemTimeError),
+
+    /// Time is beyond available leap second data
     TimeIsBeyondLeapSecondData,
+
+    /// Time is out of range
     TimeOutOfRange,
+
+    /// UTF-8 error
     Utf8(std::str::Utf8Error),
 }
 
 impl std::fmt::Display for InnerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            InnerError::BadScheme(s) => write!(f, "Unsupported scheme: {s}"),
+            InnerError::BadScheme(s) => write!(f, "Unsupported URI scheme: {s}"),
             InnerError::Base64(e) => write!(f, "Base64 decode error: {e}"),
             InnerError::DhtPutError => write!(f, "DHT put error"),
             InnerError::DhtWasShutdown => write!(f, "DHT was shutdown"),
             InnerError::Ed25519(e) => write!(f, "ed25519 Error: {e}"),
             InnerError::HashMismatch => write!(f, "Hash mismatch"),
-            InnerError::KeyLength => write!(f, "Data length is not 32 bytes"),
+            InnerError::KeyLength => write!(f, "Key data length is not 32 bytes"),
             InnerError::General(s) => write!(f, "General Error: {s}"),
             InnerError::IdZerosAreNotZero => write!(f, "ID zeroes are not zero"),
             InnerError::InvalidServerBootstrapString => write!(f, "Invalid ServerBootstrap String"),
@@ -71,7 +118,7 @@ impl std::fmt::Display for InnerError {
             InnerError::RecordSectionLengthMismatch => write!(f, "Record section length mismatch"),
             InnerError::RecordTooLong => write!(f, "Record too long"),
             InnerError::RecordTooShort => write!(f, "Record too short"),
-            InnerError::ReferenceLength => write!(f, "Data length is not 48 bytes"),
+            InnerError::ReferenceLength => write!(f, "Reference data length is not 48 bytes"),
             InnerError::ReservedFlagsUsed => write!(f, "Reserved flags used"),
             InnerError::ReservedSpaceUsed => write!(f, "Reserved space used"),
             InnerError::SystemTime(e) => write!(f, "Time Error: {e}"),
@@ -117,6 +164,7 @@ impl Into<Error> for InnerError {
 
 // Use this to avoid complex type qualification
 impl InnerError {
+    /// Convert an InnerError into an Error
     #[track_caller]
     pub fn into_err(self) -> Error {
         Error {
