@@ -9,7 +9,7 @@ fn main() {
     let secret_key = SecretKey::generate(&mut csprng);
 
     // Create a new record
-    let record = Record::new(
+    let record = OwnedRecord::new(
         &secret_key,
         &RecordParts {
             kind: Kind::MICROBLOG_ROOT,
