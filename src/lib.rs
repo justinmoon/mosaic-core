@@ -87,8 +87,8 @@ pub use reference::Reference;
 mod server_bootstrap;
 pub use server_bootstrap::ServerBootstrap;
 
-mod tags;
-pub use tags::{Tag, TagType};
+mod tag;
+pub use tag::{OwnedTag, Tag, TagType};
 
 mod timestamp;
 pub use timestamp::Timestamp;
