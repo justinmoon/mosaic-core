@@ -40,6 +40,12 @@ pub enum InnerError {
     /// ed25519 error
     Ed25519(ed25519_dalek::ed25519::Error),
 
+    /// End of Input
+    EndOfInput,
+
+    /// End of Output
+    EndOfOutput,
+
     /// Hash mismatch
     HashMismatch,
 
@@ -88,6 +94,9 @@ pub enum InnerError {
     /// Time error
     SystemTime(std::time::SystemTimeError),
 
+    /// Tag too long
+    TagTooLong,
+
     /// Time is beyond available leap second data
     TimeIsBeyondLeapSecondData,
 
@@ -106,6 +115,8 @@ impl std::fmt::Display for InnerError {
             InnerError::DhtPutError => write!(f, "DHT put error"),
             InnerError::DhtWasShutdown => write!(f, "DHT was shutdown"),
             InnerError::Ed25519(e) => write!(f, "ed25519 Error: {e}"),
+            InnerError::EndOfInput => write!(f, "End of input"),
+            InnerError::EndOfOutput => write!(f, "End of output"),
             InnerError::HashMismatch => write!(f, "Hash mismatch"),
             InnerError::KeyLength => write!(f, "Key data length is not 32 bytes"),
             InnerError::General(s) => write!(f, "General Error: {s}"),
@@ -122,6 +133,7 @@ impl std::fmt::Display for InnerError {
             InnerError::ReservedFlagsUsed => write!(f, "Reserved flags used"),
             InnerError::ReservedSpaceUsed => write!(f, "Reserved space used"),
             InnerError::SystemTime(e) => write!(f, "Time Error: {e}"),
+            InnerError::TagTooLong => write!(f, "Tag too long"),
             InnerError::TimeIsBeyondLeapSecondData => {
                 write!(f, "Time is beyond available leap second data")
             }
