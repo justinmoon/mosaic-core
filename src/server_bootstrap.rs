@@ -204,8 +204,9 @@ mod test {
         let async_dht = dht.as_async();
 
         // Server key
-        let secret_b64 = "7AgCGv/SF6EThqVuoxU4edrKzqrzqD9yd4e11eTkGIQ=";
-        let secret_key = SecretKey::from_printable(secret_b64).unwrap();
+        // let secret_b64 = "7AgCGv/SF6EThqVuoxU4edrKzqrzqD9yd4e11eTkGIQ=";
+        let printable = "mosec07oryrgz94em4nrhgwizkgfjax8pciuik6qwd6huzo647m38rdnny";
+        let secret_key = SecretKey::from_printable(printable).unwrap();
         let public_key = secret_key.public();
 
         // Expected server bootstrap

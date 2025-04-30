@@ -1,5 +1,4 @@
 use crate::{Error, InnerError, Kind, PublicKey};
-use base64::prelude::*;
 use rand_core::{OsRng, RngCore};
 
 /// An Address identifies a record group where the latest one in
@@ -22,8 +21,8 @@ impl Address {
     ///
     /// # Errors
     ///
-    /// Will return `Err` if the input is not valid base64, if it is not
-    /// encoding 48 bytes, or if those bytes don't represent a valid Id.
+    /// Will return `Err` if the input is not valid or if those bytes don't
+    /// represent a valid Id.
     pub fn from_bytes(bytes: &[u8; 48]) -> Result<Address, Error> {
         Self::verify(bytes)?;
         Ok(Address(bytes.to_owned()))
@@ -71,20 +70,23 @@ impl Address {
         Address(bytes)
     }
 
-    /// Convert an `Address` into a base64 `String`
+    /// Convert an `Address` into the human printable `moref0` form.
     #[must_use]
     pub fn printable(&self) -> String {
-        BASE64_STANDARD.encode(self.as_ref())
+        format!("moref0{}", z32::encode(self.as_ref()))
     }
 
-    /// Import an `Address` from a printable Address
+    /// Import an `Address` from its printable form
     ///
     /// # Errors
     ///
-    /// Will return `Err` if the input is not valid base64, if it is not
-    /// encoding 48 bytes, or if those bytes don't represent a valid Address.
+    /// Will return `Err` if the input not an `Address`, including if it is
+    /// an ID reference.
     pub fn from_printable(s: &str) -> Result<Address, Error> {
-        let bytes = BASE64_STANDARD.decode(s)?;
+        if !s.starts_with("moref0") {
+            return Err(InnerError::InvalidPrintable.into_err());
+        }
+        let bytes = z32::decode(&s.as_bytes()[6..])?;
         let bytes: [u8; 48] = bytes
             .try_into()
             .map_err(|_| InnerError::ReferenceLength.into_err())?;
@@ -139,7 +141,7 @@ mod test {
 
     #[test]
     fn test_address() {
-        let author_key_printable = "0Zmq+acq1dtzQX12EZx05pCJW1/iN/NZFdjcoylzrrU=";
+        let author_key_printable = "mopub0ryxb374oujrfj4q9xh1g44ntkfhon8i3fjex881hohpp5fuqog7y";
         let author_key = PublicKey::from_printable(author_key_printable).unwrap();
 
         /* generate this test:
@@ -150,10 +152,11 @@ mod test {
             );
             println!("{}", addr0);
         */
-        let printable = "10mB76cKDIgLjYwZhdABANGZqvmnKtXbc0F9dhGcdOaQiVtf4jfzWRXY3KMpc661";
+        let printable =
+            "moref01ge91q91o36bcfrk7qfhpnydyyobh88zknproi8j5791e5mekfez1ye6zrifbhh6m1dtizcsp4y5w";
 
         let addr = Address::from_printable(printable).unwrap();
         assert_eq!(addr.author_public_key(), author_key);
-        assert_eq!(addr.kind(), Kind::KEY_SCHEDULE);
+        assert_eq!(addr.kind(), Kind::MICROBLOG_ROOT);
     }
 }

@@ -1,5 +1,4 @@
 use crate::{Error, InnerError, Timestamp};
-use base64::prelude::*;
 
 /// An Id uniquely identifies a record.
 ///
@@ -18,8 +17,7 @@ impl Id {
     ///
     /// # Errors
     ///
-    /// Will return `Err` if the input is not valid base64, if it is not
-    /// encoding 48 bytes, or if those bytes don't represent a valid Id.
+    /// Will return `Err` if the input is not valid.
     pub fn from_bytes(bytes: &[u8; 48]) -> Result<Id, Error> {
         Self::verify(bytes)?;
         Ok(Id(bytes.to_owned()))
@@ -33,20 +31,23 @@ impl Id {
         Id(bytes)
     }
 
-    /// Convert an `Id` into a base64 `String`
+    /// Convert an `Id` into a human printable `moref0` form.
     #[must_use]
     pub fn printable(&self) -> String {
-        BASE64_STANDARD.encode(self.as_ref())
+        format!("moref0{}", z32::encode(self.as_ref()))
     }
 
-    /// Import an `Id` from a printable Id
+    /// Import an `Id` from its printable form
     ///
     /// # Errors
     ///
-    /// Will return `Err` if the input is not valid base64, if it is not
-    /// encoding 48 bytes, or if those bytes don't represent a valid Id.
+    /// Will return `Err` if the input is not an `Id`, including if it is
+    /// an address reference.
     pub fn from_printable(s: &str) -> Result<Id, Error> {
-        let bytes = BASE64_STANDARD.decode(s)?;
+        if !s.starts_with("moref0") {
+            return Err(InnerError::InvalidPrintable.into_err());
+        }
+        let bytes = z32::decode(&s.as_bytes()[6..])?;
         let bytes: [u8; 48] = bytes
             .try_into()
             .map_err(|_| InnerError::ReferenceLength.into_err())?;
@@ -99,9 +100,10 @@ mod test {
 
     #[test]
     fn test_id() {
-        let printable = "AZO3sZiMAAApuH6dfAj9DHnCUgw0OIBW/tfZFR+CRgp2mJ6QeJiS7JKMU6/N4onu";
+        let printable =
+            "moref0ygmettbi4ayybx8cwuj1ucd86dcz86enodrbup44w6tqz93tjz9ougw1kdgw7wdacuenwk93kyob1";
         let id = Id::from_printable(printable).unwrap();
         let timestamp = id.timestamp();
-        assert_eq!(format!("{timestamp}"), "1733953689740");
+        assert_eq!(format!("{timestamp}"), "1746051282390");
     }
 }

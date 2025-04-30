@@ -28,9 +28,6 @@ pub enum InnerError {
     /// Unsupported URI scheme
     BadScheme(String),
 
-    /// Base64 decode error
-    Base64(base64::DecodeError),
-
     /// DHT put error
     DhtPutError,
 
@@ -57,6 +54,9 @@ pub enum InnerError {
 
     /// ID zeroes are not zero
     IdZerosAreNotZero,
+
+    /// Invalid printable data
+    InvalidPrintable,
 
     /// Invalid `ServerBootstrap` String
     InvalidServerBootstrapString,
@@ -105,13 +105,15 @@ pub enum InnerError {
 
     /// UTF-8 error
     Utf8(std::str::Utf8Error),
+
+    /// Z32 error
+    Z32(z32::Z32Error),
 }
 
 impl std::fmt::Display for InnerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             InnerError::BadScheme(s) => write!(f, "Unsupported URI scheme: {s}"),
-            InnerError::Base64(e) => write!(f, "Base64 decode error: {e}"),
             InnerError::DhtPutError => write!(f, "DHT put error"),
             InnerError::DhtWasShutdown => write!(f, "DHT was shutdown"),
             InnerError::Ed25519(e) => write!(f, "ed25519 Error: {e}"),
@@ -121,6 +123,7 @@ impl std::fmt::Display for InnerError {
             InnerError::KeyLength => write!(f, "Key data length is not 32 bytes"),
             InnerError::General(s) => write!(f, "General Error: {s}"),
             InnerError::IdZerosAreNotZero => write!(f, "ID zeroes are not zero"),
+            InnerError::InvalidPrintable => write!(f, "Printable data is invalid"),
             InnerError::InvalidServerBootstrapString => write!(f, "Invalid ServerBootstrap String"),
             InnerError::InvalidUserBootstrapString => write!(f, "Invalid UserBootstrap String"),
             InnerError::InvalidUri(e) => write!(f, "Invalid URI: {e}"),
@@ -139,6 +142,7 @@ impl std::fmt::Display for InnerError {
             }
             InnerError::TimeOutOfRange => write!(f, "Time is out of range"),
             InnerError::Utf8(e) => write!(f, "UTF-8 error: {e}"),
+            InnerError::Z32(e) => write!(f, "zbase32 error: {e}"),
         }
     }
 }
@@ -146,7 +150,6 @@ impl std::fmt::Display for InnerError {
 impl StdError for InnerError {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match self {
-            InnerError::Base64(e) => Some(e),
             InnerError::Ed25519(e) => Some(e),
             InnerError::InvalidUri(e) => Some(e),
             InnerError::InvalidUriParts(e) => Some(e),
@@ -210,16 +213,6 @@ impl From<()> for Error {
     }
 }
 
-impl From<base64::DecodeError> for Error {
-    #[track_caller]
-    fn from(e: base64::DecodeError) -> Error {
-        Error {
-            inner: InnerError::Base64(e),
-            location: Location::caller(),
-        }
-    }
-}
-
 impl From<ed25519_dalek::ed25519::Error> for Error {
     #[track_caller]
     fn from(e: ed25519_dalek::ed25519::Error) -> Error {
@@ -265,6 +258,16 @@ impl From<std::str::Utf8Error> for Error {
     fn from(e: std::str::Utf8Error) -> Error {
         Error {
             inner: InnerError::Utf8(e),
+            location: Location::caller(),
+        }
+    }
+}
+
+impl From<z32::Z32Error> for Error {
+    #[track_caller]
+    fn from(e: z32::Z32Error) -> Error {
+        Error {
+            inner: InnerError::Z32(e),
             location: Location::caller(),
         }
     }

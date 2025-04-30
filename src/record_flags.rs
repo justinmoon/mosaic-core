@@ -25,6 +25,9 @@ bitflags! {
     /// The record is ephemeral; Servers should serve it to current
     /// subscribers and not keep it.
     const EPHEMERAL = 0x10;
+
+    /// The payload is printable
+    const PRINTABLE = 0x20;
     }
 }
 
@@ -51,6 +54,9 @@ impl std::fmt::Display for RecordFlags {
         }
         if self.contains(RecordFlags::EPHEMERAL) {
             parts.push("EPHEMERAL");
+        }
+        if self.contains(RecordFlags::PRINTABLE) {
+            parts.push("PRINTABLE");
         }
         write!(f, "{}", parts.join(" | "))
     }

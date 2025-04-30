@@ -3,7 +3,8 @@ use bitflags::bitflags;
 use mainline::async_dht::AsyncDht;
 use mainline::{Id, MutableItem};
 
-pub(crate) const DHT_USER_SALT: &[u8] = b"mub24";
+// note: this has been updated from "mub24" because printable pubkeys have changed.
+pub(crate) const DHT_USER_SALT: &[u8] = b"mub25";
 
 /// Server usage flags
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -201,7 +202,7 @@ mod test {
 
     #[test]
     fn test_user_bootstrap_serialization() {
-        let s = "U\n3 7AgCGv/SF6EThqVuoxU4edrKzqrzqD9yd4e11eTkGIQ=\n1 vpYyesj/gbTHzY5X20fGrolobsTG4Ygim8X4DnfXxOU=";
+        let s = "U\n3 mopub0embq17gjmxub6m9mhrg4y33htppzoi6desbenjzzrbzzc4qm7bwo\n1 mopub01cqdc3i8j9pgdepwuxysqjus44eobwhijdnhg5wyopfng5rfmtyy";
         let ubs = UserBootstrap::from_dht_string_and_seq(s, 1).unwrap();
         let s2 = ubs.to_dht_string();
         assert_eq!(s, &s2);
@@ -216,12 +217,13 @@ mod test {
         let async_dht = dht.as_async();
 
         // User key
-        let secret_b64 = "7AgCGv/SF6EThqVuoxU4edrKzqrzqD9yd4e11eTkGIQ=";
-        let secret_key = SecretKey::from_printable(secret_b64).unwrap();
+        // let secret_b64 = "7AgCGv/SF6EThqVuoxU4edrKzqrzqD9yd4e11eTkGIQ=";
+        let printable = "mosec07oryrgz94em4nrhgwizkgfjax8pciuik6qwd6huzo647m38rdnny";
+        let secret_key = SecretKey::from_printable(printable).unwrap();
         let public_key = secret_key.public();
 
         // Expected user bootstrap
-        let s = "U\n3 7AgCGv/SF6EThqVuoxU4edrKzqrzqD9yd4e11eTkGIQ=\n1 vpYyesj/gbTHzY5X20fGrolobsTG4Ygim8X4DnfXxOU=";
+        let s = "U\n3 mopub0embq17gjmxub6m9mhrg4y33htppzoi6desbenjzzrbzzc4qm7bwo\n1 mopub01cqdc3i8j9pgdepwuxysqjus44eobwhijdnhg5wyopfng5rfmtyy";
         let mut expected_user_bootstrap = UserBootstrap::from_dht_string_and_seq(s, 3).unwrap();
 
         // Fetch UserBootstrap from this server

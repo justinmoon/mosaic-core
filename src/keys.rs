@@ -1,6 +1,5 @@
 use crate::{DalekSigningKey, DalekVerifyingKey};
 use crate::{Error, InnerError};
-use base64::prelude::*;
 
 /// A public signing key representing a server or user,
 /// whether a master key or subkey.
@@ -48,20 +47,22 @@ impl PublicKey {
         Ok(Self::from_verifying_key(&vk))
     }
 
-    /// Convert a `PublicKey` into a base64 `String`
+    /// Convert a `PublicKey` into the human printable `mopub0` form.
     #[must_use]
     pub fn printable(&self) -> String {
-        BASE64_STANDARD.encode(self.0)
+        format!("mopub0{}", z32::encode(&self.0))
     }
 
-    /// Convert a base64 `String` into a `PublicKey`
+    /// Import a `PublicKey` from its printable form
     ///
     /// # Errors
     ///
-    /// Will return `Err` if the input is not valid base64, if it is not 32 bytes long,
-    /// or if the bytes do not represent a `CompressedEdwardsY` point on the curve.
+    /// Will return `Err` if the input is not a `PublicKey`
     pub fn from_printable(s: &str) -> Result<PublicKey, Error> {
-        let bytes = BASE64_STANDARD.decode(s)?;
+        if !s.starts_with("mopub0") {
+            return Err(InnerError::InvalidPrintable.into_err());
+        }
+        let bytes = z32::decode(&s.as_bytes()[6..])?;
         let bytes: [u8; 32] = bytes
             .try_into()
             .map_err(|_| InnerError::KeyLength.into_err())?;
@@ -127,19 +128,22 @@ impl SecretKey {
         PublicKey::from_verifying_key(&self.to_signing_key().verifying_key())
     }
 
-    /// Convert a `SecretKey` into a base64 `String`
+    /// Convert a `SecretKey` into the human printable `mosec0` form.
     #[must_use]
     pub fn printable(&self) -> String {
-        BASE64_STANDARD.encode(self.0)
+        format!("mosec0{}", z32::encode(&self.0))
     }
 
-    /// Convert a base64 `String` into a `SecretKey`
+    /// Import a `SecretKey` from its printable form
     ///
     /// # Errors
     ///
-    /// Will return `Err` if the input is not valid base64, if it is not 32 bytes long.
+    /// Will return `Err` if the input is not a `SecretKey`
     pub fn from_printable(s: &str) -> Result<SecretKey, Error> {
-        let bytes = BASE64_STANDARD.decode(s)?;
+        if !s.starts_with("mosec0") {
+            return Err(InnerError::InvalidPrintable.into_err());
+        }
+        let bytes = z32::decode(&s.as_bytes()[6..])?;
         let bytes: [u8; 32] = bytes
             .try_into()
             .map_err(|_| InnerError::KeyLength.into_err())?;

@@ -1,5 +1,4 @@
 use crate::{Address, Error, Id, InnerError};
-use base64::prelude::*;
 
 /// A Reference (either an Id or an Address)
 ///
@@ -18,8 +17,7 @@ impl Reference {
     ///
     /// # Errors
     ///
-    /// Will return `Err` if the input is not valid base64, if it is not
-    /// encoding 48 bytes, or if those bytes don't represent a valid Reference.
+    /// Will return `Err` if the input is not valid.
     pub fn from_bytes(bytes: &[u8; 48]) -> Result<Reference, Error> {
         Self::verify(bytes)?;
         Ok(Reference(bytes.to_owned()))
@@ -29,20 +27,22 @@ impl Reference {
     //    Reference(bytes.to_owned())
     //}
 
-    /// Convert a `Reference` into a base64 `String`
+    /// Convert a `Reference` into the human printable `moref0` form.
     #[must_use]
     pub fn printable(&self) -> String {
-        BASE64_STANDARD.encode(self.as_ref())
+        format!("moref0{}", z32::encode(self.as_ref()))
     }
 
-    /// Import a `Reference` from a printable Reference
+    /// Import a `Reference` from its printable form
     ///
     /// # Errors
     ///
-    /// Will return `Err` if the input is not valid base64, if it is not
-    /// encoding 48 bytes, or if those bytes don't represent a valid Reference.
+    /// Will return `Err` if the input is not valid.
     pub fn from_printable(s: &str) -> Result<Reference, Error> {
-        let bytes = BASE64_STANDARD.decode(s)?;
+        if !s.starts_with("moref0") {
+            return Err(InnerError::InvalidPrintable.into_err());
+        }
+        let bytes = z32::decode(&s.as_bytes()[6..])?;
         let bytes: [u8; 48] = bytes
             .try_into()
             .map_err(|_| InnerError::ReferenceLength.into_err())?;
@@ -129,7 +129,8 @@ mod test {
 
     #[test]
     fn test_reference() {
-        let printable = "AZO3sZiMAAApuH6dfAj9DHnCUgw0OIBW/tfZFR+CRgp2mJ6QeJiS7JKMU6/N4onu";
+        let printable =
+            "moref0ygmettbi4ayybx8cwuj1ucd86dcz86enodrbup44w6tqz93tjz9ougw1kdgw7wdacuenwk93kyob1";
         let refer = Reference::from_printable(printable).unwrap();
         assert!(refer.is_id());
         assert!(!refer.is_address());
@@ -138,7 +139,8 @@ mod test {
         let id = refer.into_id().unwrap();
         assert_eq!(format!("{id}"), printable);
 
-        let printable = "gZO33GbKAQCYLNc7FNJMjNGZqvmnKtXbc0F9dhGcdOaQiVtf4jfzWRXY3KMpc661";
+        let printable =
+            "moref01ge91q91o36bcfrk7qfhpnydyyobh88zknproi8j5791e5mekfez1ye6zrifbhh6m1dtizcsp4y5w";
         let refer = Reference::from_printable(printable).unwrap();
         assert!(!refer.is_id());
         assert!(refer.is_address());

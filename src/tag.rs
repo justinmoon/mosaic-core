@@ -642,7 +642,7 @@ mod test {
             secret_key.public()
         };
         let reference = {
-            let printable = "AZO3sZiMAAApuH6dfAj9DHnCUgw0OIBW/tfZFR+CRgp2mJ6QeJiS7JKMU6/N4onu";
+            let printable = "moref01ge91q91o36bcfrk7qfhpnydyyobh88zknproi8j5791e5mekfez1ye6zrifbhh6m1dtizcsp4y5w";
             Reference::from_printable(printable).unwrap()
         };
         let url = "https://example.com/meme.jpg";

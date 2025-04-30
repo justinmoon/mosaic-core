@@ -1,5 +1,4 @@
 use crate::{Address, Error, Id, InnerError, Kind, PublicKey, RecordFlags, SecretKey, Timestamp};
-use base64::prelude::*;
 use ed25519_dalek::Signature;
 use std::ops::{Deref, DerefMut, Range, RangeFrom};
 
@@ -127,7 +126,7 @@ impl Record {
             return Err(InnerError::EndOfOutput.into());
         }
 
-        if flags & RecordFlags::all() != RecordFlags::empty() {
+        if flags | RecordFlags::all() != RecordFlags::all() {
             return Err(InnerError::ReservedFlagsUsed.into());
         }
 
@@ -232,7 +231,7 @@ impl Record {
 
         // Verify reserved flags are 0
         let flags = self.flags();
-        if flags & RecordFlags::all() != RecordFlags::empty() {
+        if flags | RecordFlags::all() != RecordFlags::all() {
             return Err(InnerError::ReservedFlagsUsed.into());
         }
 
@@ -399,19 +398,31 @@ const HASHABLE_RANGE: RangeFrom<usize> = 112..;
 
 impl std::fmt::Display for Record {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "id: {}", BASE64_STANDARD.encode(self.id()))?;
-        writeln!(f, "  address: {}", BASE64_STANDARD.encode(self.address()))?;
-        writeln!(f, "  author key: {}", self.author_public_key())?;
-        writeln!(f, "  signing key: {}", self.signing_public_key())?;
+        writeln!(f, "id: {}", self.id().printable())?;
+        writeln!(f, "  address: {}", self.address().printable())?;
+        writeln!(f, "  author key: {}", self.author_public_key().printable())?;
+        writeln!(
+            f,
+            "  signing key: {}",
+            self.signing_public_key().printable()
+        )?;
         writeln!(f, "  timestamp: {}", self.timestamp())?;
         writeln!(f, "  kind: {}", self.kind())?;
         writeln!(f, "  flags: {} {}", self.flags(), self.app_flags())?;
-        writeln!(f, "  tags: {}", BASE64_STANDARD.encode(self.tags_bytes()))?;
-        writeln!(
-            f,
-            "  payload: {}",
-            BASE64_STANDARD.encode(self.payload_bytes())
-        )?;
+        writeln!(f, "  tags (zbase32): {}", z32::encode(self.tags_bytes()))?;
+        if self.flags().contains(RecordFlags::PRINTABLE) {
+            writeln!(
+                f,
+                "  payload: {}",
+                String::from_utf8_lossy(self.payload_bytes())
+            )?;
+        } else {
+            writeln!(
+                f,
+                "  payload (zbase32): {}",
+                z32::encode(self.payload_bytes())
+            )?;
+        }
 
         Ok(())
     }
