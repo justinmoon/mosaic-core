@@ -101,6 +101,12 @@ impl Tag {
         OwnedTag(self.0.to_owned())
     }
 
+    /// As bytes
+    #[must_use]
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.0
+    }
+
     /// Get the type of tag this is
     #[must_use]
     #[allow(clippy::missing_panics_doc)]

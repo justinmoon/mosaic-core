@@ -68,6 +68,12 @@ impl Record {
         Ok(unverified)
     }
 
+    /// As bytes
+    #[must_use]
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.0
+    }
+
     /// Write a new `Record` to the buffer
     ///
     /// # Errors
@@ -240,12 +246,6 @@ impl Record {
         }
 
         Ok(())
-    }
-
-    /// View a `Record` as a slice of bytes
-    #[must_use]
-    pub fn as_bytes(&self) -> &[u8] {
-        &self.0
     }
 
     /// Signature
