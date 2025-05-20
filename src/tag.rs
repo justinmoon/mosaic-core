@@ -85,14 +85,14 @@ impl Tag {
     /// Be sure the input is a valid Tag.
     #[allow(clippy::missing_panics_doc)]
     pub unsafe fn from_bytes(input: &[u8]) -> Result<&Tag, Error> {
-        if input.len() < 2 {
+        if input.len() < 3 {
             return Err(InnerError::EndOfInput.into());
         }
         let len = input[2] as usize;
-        if input.len() < len {
+        if input.len() < 3 + len {
             return Err(InnerError::EndOfInput.into());
         }
-        Ok(Self::from_inner(&input[0..len]))
+        Ok(Self::from_inner(&input[0..3 + len]))
     }
 
     /// Copy to an allocated owned data type
@@ -101,10 +101,16 @@ impl Tag {
         OwnedTag(self.0.to_owned())
     }
 
-    /// As bytes
+    /// As bytes (including the type and length bytes)
     #[must_use]
     pub fn as_bytes(&self) -> &[u8] {
         &self.0
+    }
+
+    /// As data bytes
+    #[must_use]
+    pub fn data_bytes(&self) -> &[u8] {
+        &self.0[3..]
     }
 
     /// Get the type of tag this is
