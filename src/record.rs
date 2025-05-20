@@ -1,4 +1,6 @@
-use crate::{Address, Error, Id, InnerError, Kind, PublicKey, RecordFlags, SecretKey, Timestamp};
+use crate::{
+    Address, Error, Id, InnerError, Kind, PublicKey, RecordFlags, SecretKey, Tag, Timestamp,
+};
 use ed25519_dalek::Signature;
 use std::ops::{Deref, DerefMut, Range, RangeFrom};
 
@@ -371,6 +373,15 @@ impl Record {
         let start = HEADER_LEN + self.tags_padded_len();
         &self.0[start..start + self.payload_len()]
     }
+
+    /// Iterate over the Tags
+    #[must_use]
+    pub fn tags(&self) -> TagsIter<'_> {
+        TagsIter {
+            bytes: self.tags_bytes(),
+            offset: 0,
+        }
+    }
 }
 
 const SIG_RANGE: Range<usize> = 0..64;
@@ -575,9 +586,68 @@ impl RecordParts<'_> {
     }
 }
 
+/// An iterator of the `Tag`s of a `Record`
+#[derive(Debug)]
+pub struct TagsIter<'a> {
+    bytes: &'a [u8],
+    offset: usize,
+}
+
+impl<'a> Iterator for TagsIter<'a> {
+    type Item = &'a Tag;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let offset = self.offset;
+        let full_len = self.bytes.len();
+        if full_len < offset + 3 {
+            None
+        } else {
+            let datalen = self.bytes[offset + 2] as usize;
+            if full_len < offset + 3 + datalen {
+                None
+            } else {
+                self.offset += 3 + datalen; // prepare offset for next tag
+                Some(unsafe { Tag::from_bytes(&self.bytes[offset..offset + 3 + datalen]).unwrap() })
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::*;
+
+    #[test]
+    fn test_tags_iterator() {
+        let example: Vec<u8> = vec![
+            1, 0, // type 1,
+            4, // length,
+            10, 9, 8, 7, // data
+            2, 0, // type 2
+            6, // length
+            1, 2, 3, 4, 5, 6, // data
+            3, 1, // type
+            3, // length
+            3, 4, 5, // data
+        ];
+
+        let mut iter = TagsIter {
+            bytes: &example,
+            offset: 0,
+        };
+
+        let tag0 = iter.next().unwrap();
+        let tag1 = iter.next().unwrap();
+        let tag2 = iter.next().unwrap();
+        assert_eq!(iter.next(), None);
+
+        assert_eq!(tag0.data_bytes(), &[10, 9, 8, 7]);
+        assert_eq!(tag0.get_type(), TagType(1));
+        assert_eq!(tag1.data_bytes(), &[1, 2, 3, 4, 5, 6]);
+        assert_eq!(tag1.get_type(), TagType(2));
+        assert_eq!(tag2.data_bytes(), &[3, 4, 5]);
+        assert_eq!(tag2.get_type(), TagType(259));
+    }
 
     #[test]
     fn test_padded_lengths_idea() {
