@@ -1,4 +1,4 @@
-use crate::{Error, InnerError, Timestamp};
+use crate::{Error, InnerError, Reference, Timestamp};
 
 /// An Id uniquely identifies a record.
 ///
@@ -79,6 +79,13 @@ impl Id {
         let _ = Timestamp::from_be_bytes(&bytes[0..6].try_into().unwrap())?;
 
         Ok(())
+    }
+
+    /// Convert into a `Reference`
+    #[must_use]
+    #[allow(clippy::missing_panics_doc)]
+    pub fn to_reference(&self) -> Reference {
+        Reference::from_bytes(&self.0).unwrap()
     }
 }
 

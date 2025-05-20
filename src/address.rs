@@ -1,4 +1,4 @@
-use crate::{Error, InnerError, Kind, PublicKey};
+use crate::{Error, InnerError, Kind, PublicKey, Reference};
 use rand_core::{OsRng, RngCore};
 
 /// An Address identifies a record group where the latest one in
@@ -120,6 +120,13 @@ impl Address {
         let _ = PublicKey::from_bytes(bytes[16..48].try_into().unwrap())?;
 
         Ok(())
+    }
+
+    /// Convert into a `Reference`
+    #[must_use]
+    #[allow(clippy::missing_panics_doc)]
+    pub fn to_reference(&self) -> Reference {
+        Reference::from_bytes(&self.0).unwrap()
     }
 }
 
