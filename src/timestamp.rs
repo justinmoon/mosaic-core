@@ -9,9 +9,12 @@ use instant::SystemTime;
 #[cfg(target_arch = "wasm32")]
 const UNIX_EPOCH: SystemTime = SystemTime::UNIX_EPOCH;
 
+/// The largest timestamp (milliseconds).
+pub const MAX_MILLISECONDS: u64 = 0x7FFF_FFFF_FFFF;
+
 /// A timestamp is a value that represents the number of milliseconds
 /// elapsed since the UNIX EPOCH (including leap seconds!). While stored
-/// in a u64, it serializes to 47 bits and thus must be <= `0x7FFF_FFFF_FFFF`.
+/// in a u64, it serializes to 47 bits and thus must be <= `MAX_MILLISECONDS`.
 // NOTE: This must have a maximum of 47 bits, with the 48 bit zeroed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Timestamp(u64);
@@ -23,7 +26,7 @@ impl Timestamp {
     /// it will return None.
     #[must_use]
     pub fn from_millis(millis: u64) -> Option<Timestamp> {
-        if millis > 0x7FFF_FFFF_FFFF {
+        if millis > MAX_MILLISECONDS {
             None
         } else {
             Some(Timestamp(millis))
@@ -64,7 +67,7 @@ impl Timestamp {
             .checked_add(microseconds)
             .ok_or(InnerError::TimeOutOfRange.into_err())?;
 
-        if millis > 0x7FFF_FFFF_FFFF {
+        if millis > MAX_MILLISECONDS {
             Err(InnerError::TimeOutOfRange.into())
         } else {
             Ok(Timestamp(millis))
@@ -122,7 +125,7 @@ impl Timestamp {
         eight[..6].copy_from_slice(slice);
         let millis: u64 = u64::from_le_bytes(eight);
 
-        if millis > 0x7FFF_FFFF_FFFF {
+        if millis > MAX_MILLISECONDS {
             Err(InnerError::TimeOutOfRange.into())
         } else {
             Ok(Timestamp(millis))
@@ -139,11 +142,20 @@ impl Timestamp {
         eight[2..8].copy_from_slice(slice);
         let millis: u64 = u64::from_be_bytes(eight);
 
-        if millis > 0x7FFF_FFFF_FFFF {
+        if millis > MAX_MILLISECONDS {
             Err(InnerError::TimeOutOfRange.into())
         } else {
             Ok(Timestamp(millis))
         }
+    }
+
+    /// Inverse
+    ///
+    /// This gives you six bytes that sorts from newest to oldest
+    /// by subtracting the timestamp milliseconds from `MAX_TIMESTAMP`
+    #[must_use]
+    pub fn inverse_bytes(&self) -> [u8; 6] {
+        Timestamp(MAX_MILLISECONDS - self.0).to_be_bytes()
     }
 }
 

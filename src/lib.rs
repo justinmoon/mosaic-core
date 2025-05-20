@@ -91,7 +91,7 @@ mod tag;
 pub use tag::{OwnedTag, Tag, TagType};
 
 mod timestamp;
-pub use timestamp::Timestamp;
+pub use timestamp::{Timestamp, MAX_MILLISECONDS};
 
 mod uri;
 
