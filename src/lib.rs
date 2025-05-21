@@ -79,7 +79,7 @@ mod record;
 pub use record::{OwnedRecord, Record, RecordParts, TagsIter};
 
 mod record_flags;
-pub use record_flags::RecordFlags;
+pub use record_flags::{RecordFlags, SignatureScheme};
 
 mod reference;
 pub use reference::Reference;
