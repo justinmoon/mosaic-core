@@ -53,6 +53,12 @@
     missing_docs
 )]
 
+macro_rules! padded_len {
+    ($len:expr) => {
+        ((($len) + 7) & !7)
+    };
+}
+
 pub use ed25519_dalek::SigningKey as DalekSigningKey;
 pub use ed25519_dalek::VerifyingKey as DalekVerifyingKey;
 pub use mainline;
