@@ -64,6 +64,7 @@ impl std::fmt::Display for RecordFlags {
 
 /// A signature scheme used to sign a `Record`
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[allow(clippy::doc_markdown)]
 pub enum SignatureScheme {
     /// EdDSA ed25519
     Ed25519 = 0,
@@ -79,7 +80,7 @@ pub enum SignatureScheme {
 }
 
 impl RecordFlags {
-    const MASK: u16 = 0b11000000;
+    const MASK: u16 = 0b1100_0000;
 
     /// Set the signature scheme
     pub fn set_signature_scheme(&mut self, scheme: SignatureScheme) {
@@ -88,6 +89,7 @@ impl RecordFlags {
     }
 
     /// Get the signature scheme
+    #[must_use]
     pub fn get_signature_scheme(&self) -> SignatureScheme {
         match (self.0 & Self::MASK) >> 6 {
             0 => SignatureScheme::Ed25519,
