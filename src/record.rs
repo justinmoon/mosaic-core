@@ -545,6 +545,18 @@ impl DerefMut for OwnedRecord {
     }
 }
 
+impl AsRef<Record> for OwnedRecord {
+    fn as_ref(&self) -> &Record {
+        Record::from_inner(&self.0)
+    }
+}
+
+impl AsMut<Record> for OwnedRecord {
+    fn as_mut(&mut self) -> &mut Record {
+        Record::from_inner_mut(&mut self.0)
+    }
+}
+
 impl std::fmt::Display for OwnedRecord {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         std::fmt::Display::fmt(&**self, f)

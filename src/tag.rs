@@ -630,6 +630,18 @@ impl DerefMut for OwnedTag {
     }
 }
 
+impl AsRef<Tag> for OwnedTag {
+    fn as_ref(&self) -> &Tag {
+        Tag::from_inner(&self.0)
+    }
+}
+
+impl AsMut<Tag> for OwnedTag {
+    fn as_mut(&mut self) -> &mut Tag {
+        Tag::from_inner_mut(&mut self.0)
+    }
+}
+
 #[cfg(test)]
 macro_rules! test_tag_type {
     ($new:expr, $typ:expr) => {{
