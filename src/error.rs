@@ -61,6 +61,9 @@ pub enum InnerError {
     /// Invalid `ServerBootstrap` String
     InvalidServerBootstrapString,
 
+    /// Invalid Tag
+    InvalidTag,
+
     /// Invalid `UserBootstrap` String
     InvalidUserBootstrapString,
 
@@ -125,6 +128,7 @@ impl std::fmt::Display for InnerError {
             InnerError::IdZerosAreNotZero => write!(f, "ID zeroes are not zero"),
             InnerError::InvalidPrintable => write!(f, "Printable data is invalid"),
             InnerError::InvalidServerBootstrapString => write!(f, "Invalid ServerBootstrap String"),
+            InnerError::InvalidTag => write!(f, "Invalid Tag"),
             InnerError::InvalidUserBootstrapString => write!(f, "Invalid UserBootstrap String"),
             InnerError::InvalidUri(e) => write!(f, "Invalid URI: {e}"),
             InnerError::InvalidUriParts(e) => write!(f, "Invalid URI parts: {e}"),

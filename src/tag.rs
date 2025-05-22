@@ -89,10 +89,13 @@ impl Tag {
             return Err(InnerError::EndOfInput.into());
         }
         let len = input[2] as usize;
-        if input.len() < 3 + len {
+        if len < 3 {
+            return Err(InnerError::InvalidTag.into());
+        }
+        if input.len() < len {
             return Err(InnerError::EndOfInput.into());
         }
-        Ok(Self::from_inner(&input[0..3 + len]))
+        Ok(Self::from_inner(&input[0..len]))
     }
 
     /// Copy to an allocated owned data type
