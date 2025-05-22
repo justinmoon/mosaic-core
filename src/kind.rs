@@ -35,3 +35,17 @@ impl std::fmt::Display for Kind {
         }
     }
 }
+
+impl Kind {
+    /// Converts to bytes in little-endian
+    #[must_use]
+    pub fn to_bytes(&self) -> [u8; 2] {
+        self.0.to_le_bytes()
+    }
+
+    /// Creates from bytes in little-endian
+    #[must_use]
+    pub fn from_bytes(slice: [u8; 2]) -> Kind {
+        Kind(u16::from_le_bytes(slice))
+    }
+}
