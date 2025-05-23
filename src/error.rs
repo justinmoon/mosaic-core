@@ -43,6 +43,9 @@ pub enum InnerError {
     /// End of Output
     EndOfOutput,
 
+    /// Filter element is too long
+    FilterElementTooLong,
+
     /// Hash mismatch
     HashMismatch,
 
@@ -54,6 +57,12 @@ pub enum InnerError {
 
     /// ID zeroes are not zero
     IdZerosAreNotZero,
+
+    /// Invalid filter element for function
+    InvalidFilterElementForFunction,
+
+    /// Invalid length
+    InvalidLength,
 
     /// Invalid printable data
     InvalidPrintable,
@@ -106,6 +115,12 @@ pub enum InnerError {
     /// Time is out of range
     TimeOutOfRange,
 
+    /// Too many data elements
+    TooManyDataElements(usize),
+
+    /// Unknown filter element
+    UnknownFilterElement(u8),
+
     /// UTF-8 error
     Utf8(std::str::Utf8Error),
 
@@ -122,10 +137,16 @@ impl std::fmt::Display for InnerError {
             InnerError::Ed25519(e) => write!(f, "ed25519 Error: {e}"),
             InnerError::EndOfInput => write!(f, "End of input"),
             InnerError::EndOfOutput => write!(f, "End of output"),
+            InnerError::FilterElementTooLong => write!(f, "Filter element too long"),
             InnerError::HashMismatch => write!(f, "Hash mismatch"),
             InnerError::KeyLength => write!(f, "Key data length is not 32 bytes"),
             InnerError::General(s) => write!(f, "General Error: {s}"),
             InnerError::IdZerosAreNotZero => write!(f, "ID zeroes are not zero"),
+            InnerError::InvalidFilterElementForFunction => write!(
+                f,
+                "Invalid filter element for function (received dates not available in Record)"
+            ),
+            InnerError::InvalidLength => write!(f, "Invalid length"),
             InnerError::InvalidPrintable => write!(f, "Printable data is invalid"),
             InnerError::InvalidServerBootstrapString => write!(f, "Invalid ServerBootstrap String"),
             InnerError::InvalidTag => write!(f, "Invalid Tag"),
@@ -145,6 +166,8 @@ impl std::fmt::Display for InnerError {
                 write!(f, "Time is beyond available leap second data")
             }
             InnerError::TimeOutOfRange => write!(f, "Time is out of range"),
+            InnerError::TooManyDataElements(c) => write!(f, "Too many data elements. Max is {c}"),
+            InnerError::UnknownFilterElement(u) => write!(f, "Unknown filter element: {u}"),
             InnerError::Utf8(e) => write!(f, "UTF-8 error: {e}"),
             InnerError::Z32(e) => write!(f, "zbase32 error: {e}"),
         }

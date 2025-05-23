@@ -72,6 +72,9 @@ mod crypto;
 mod error;
 pub use error::{Error, InnerError};
 
+mod filter;
+pub use filter::{FilterElement, FilterElementType, OwnedFilterElement};
+
 mod id;
 pub use id::Id;
 
