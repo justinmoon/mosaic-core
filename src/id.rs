@@ -59,7 +59,7 @@ impl Id {
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
     pub fn timestamp(&self) -> Timestamp {
-        Timestamp::from_be_bytes(&self.0[0..6].try_into().unwrap()).unwrap()
+        Timestamp::from_be_reverse_bytes(&self.0[0..6].try_into().unwrap()).unwrap()
     }
 
     /// Extract the hash prefix from the Id
@@ -76,7 +76,7 @@ impl Id {
         }
 
         // Verify the timestamp
-        let _ = Timestamp::from_be_bytes(&bytes[0..6].try_into().unwrap())?;
+        let _ = Timestamp::from_be_reverse_bytes(&bytes[0..6].try_into().unwrap())?;
 
         Ok(())
     }
@@ -108,9 +108,10 @@ mod test {
     #[test]
     fn test_id() {
         let printable =
-            "moref0ygmettbi4ayybx8cwuj1ucd86dcz86enodrbup44w6tqz93tjz9ougw1kdgw7wdacuenwk93kyob1";
+            "moref0x3wqbwkqbeyyb6319cjdx4rtwgenpf7bzwn8g49y9n8qt8d93x199g5h6hzyjupt7jnycc6zrq73n";
         let id = Id::from_printable(printable).unwrap();
         let timestamp = id.timestamp();
-        assert_eq!(format!("{timestamp}"), "1746051282390");
+        assert_eq!(format!("{timestamp}"), "1748574843381");
     }
+
 }

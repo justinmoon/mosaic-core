@@ -115,6 +115,9 @@ pub enum InnerError {
     /// Time is out of range
     TimeOutOfRange,
 
+    /// Timestamp Mismatch
+    TimestampMismatch,
+
     /// Too many data elements
     TooManyDataElements(usize),
 
@@ -166,6 +169,7 @@ impl std::fmt::Display for InnerError {
                 write!(f, "Time is beyond available leap second data")
             }
             InnerError::TimeOutOfRange => write!(f, "Time is out of range"),
+            InnerError::TimestampMismatch => write!(f, "Timestamp mismatch"),
             InnerError::TooManyDataElements(c) => write!(f, "Too many data elements. Max is {c}"),
             InnerError::UnknownFilterElement(u) => write!(f, "Unknown filter element: {u}"),
             InnerError::Utf8(e) => write!(f, "UTF-8 error: {e}"),

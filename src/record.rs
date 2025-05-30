@@ -162,7 +162,7 @@ impl Record {
         hasher.finalize_xof().fill(&mut truehash[..]);
         buffer[HASH_RANGE].copy_from_slice(&truehash[..40]);
 
-        buffer[BE_TIMESTAMP_RANGE].copy_from_slice(timestamp.to_be_bytes().as_slice());
+        buffer[BE_REV_TIMESTAMP_RANGE].copy_from_slice(timestamp.be_reverse_bytes().as_slice());
 
         // Sign
         let digest = crate::crypto::Blake3 { h: hasher };
@@ -221,15 +221,20 @@ impl Record {
             return Err(InnerError::HashMismatch.into());
         }
 
+        // Verify the timestamps
+        let id_timestamp =
+            Timestamp::from_be_reverse_bytes(&self.0[BE_REV_TIMESTAMP_RANGE].try_into().unwrap())?;
+        let timestamp = Timestamp::from_bytes(self.0[TIMESTAMP_RANGE].try_into().unwrap())?;
+        if id_timestamp != timestamp {
+            return Err(InnerError::TimestampMismatch.into());
+        }
+
         // Verify the signature
         let signature = Signature::from_slice(&self.0[SIG_RANGE])?;
         let digest = crate::crypto::Blake3 { h: hasher };
         signing_public_key
             .to_verifying_key()
             .verify_prehashed_strict(digest, Some(b"Mosaic"), &signature)?;
-
-        // Verify the timestamp
-        let _timestamp = Timestamp::from_bytes(self.0[TIMESTAMP_RANGE].try_into().unwrap())?;
 
         // Verify reserved flags are 0
         let flags = self.flags();
@@ -381,7 +386,7 @@ impl Record {
 const SIG_RANGE: Range<usize> = 0..64;
 
 const ID_RANGE: Range<usize> = 64..112;
-const BE_TIMESTAMP_RANGE: Range<usize> = 64..70;
+const BE_REV_TIMESTAMP_RANGE: Range<usize> = 64..70;
 // const ZERO_RANGE: Range<usize> = 70..72;
 const HASH_RANGE: Range<usize> = 72..112;
 

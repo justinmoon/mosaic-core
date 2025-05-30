@@ -154,8 +154,25 @@ impl Timestamp {
     /// This gives you six bytes that sorts from newest to oldest
     /// by subtracting the timestamp milliseconds from `MAX_TIMESTAMP`
     #[must_use]
-    pub fn inverse_bytes(&self) -> [u8; 6] {
+    pub fn be_reverse_bytes(&self) -> [u8; 6] {
         Timestamp(MAX_MILLISECONDS - self.0).to_be_bytes()
+    }
+
+    /// Create from a 6-byte big-endian reverse timestamp slice
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the data is out of range for a `Timestamp`
+    pub fn from_be_reverse_bytes(slice: &[u8; 6]) -> Result<Timestamp, Error> {
+        let mut eight: [u8; 8] = [0; 8];
+        eight[2..8].copy_from_slice(slice);
+        let millis: u64 = u64::from_be_bytes(eight);
+
+        if millis > MAX_MILLISECONDS {
+            Err(InnerError::TimeOutOfRange.into())
+        } else {
+            Ok(Timestamp(MAX_MILLISECONDS - millis))
+        }
     }
 }
 
@@ -223,6 +240,11 @@ mod test {
         let bytes = timestamp.to_bytes();
         let timestamp2 = Timestamp::from_bytes(&bytes).unwrap();
         assert_eq!(timestamp, timestamp2);
+
+        // Test be_reverse
+        let ber = timestamp.be_reverse_bytes();
+        let orig = Timestamp::from_be_reverse_bytes(&ber).unwrap();
+        assert_eq!(timestamp, orig);
 
         // Print now
         println!("NOW={}", Timestamp::now().unwrap());
