@@ -120,7 +120,7 @@ impl FilterElement {
         FilterElementType(self.0[0])
     }
 
-    /// Does this filter match a given record?
+    /// Does this filter element match a given record?
     ///
     /// Does not work with `ReceivedSince` or `ReceivedUntil`.
     ///
@@ -128,7 +128,7 @@ impl FilterElement {
     ///
     /// Throws an error if Self is `ReceivedSince` or `ReceivedUntil`.
     /// Throws an error if Self is `Kinds` and the internal length is wrong.
-    /// Throws an error on any unkknown `FilterElement`
+    /// Throws an error on any unknown `FilterElement`
     #[allow(clippy::missing_panics_doc)]
     #[allow(clippy::too_many_lines)]
     pub fn matches(&self, record: &Record) -> Result<bool, Error> {
@@ -509,14 +509,14 @@ mod test {
         let secret_key2 = SecretKey::generate(&mut csprng);
         let key2 = secret_key2.public();
         let secret_key3 = SecretKey::generate(&mut csprng);
-        let key3 = secret_key3.public();
+        // let key3 = secret_key3.public();
 
-        let fe1_ak = OwnedFilterElement::new_author_keys(vec![key1, key2]).unwrap();
+        let fe1_ak = OwnedFilterElement::new_author_keys(&[key1, key2]).unwrap();
         test_filter_element_type!(&fe1_ak, FilterElementType::AUTHOR_KEYS);
 
         let kind1 = Kind::MICROBLOG_ROOT;
         let kind2 = Kind::REPLY_COMMENT;
-        let fe2_k = OwnedFilterElement::new_kinds(vec![kind1, kind2]).unwrap();
+        let fe2_k = OwnedFilterElement::new_kinds(&[kind1, kind2]).unwrap();
         test_filter_element_type!(&fe2_k, FilterElementType::KINDS);
 
         let record = OwnedRecord::new(
