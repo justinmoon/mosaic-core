@@ -49,6 +49,19 @@ impl FilterElementType {
     /// Matches all records that do not contain any of the given tags
     /// [ExcludedTags](https://stevefarroll.github.io/mosaic-spec/filter.html#excludes-tag)
     pub const EXCLUDED_TAGS: FilterElementType = FilterElementType(0x85);
+
+    /// Is it narrow?
+    #[must_use]
+    pub fn is_narrow(&self) -> bool {
+        matches!(
+            *self,
+            Self::AUTHOR_KEYS
+                | Self::SIGNING_KEYS
+                | Self::KINDS
+                | Self::TIMESTAMPS
+                | Self::INCLUDED_TAGS
+        )
+    }
 }
 
 impl std::fmt::Display for FilterElementType {

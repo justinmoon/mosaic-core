@@ -91,6 +91,23 @@ impl Filter {
 
         Ok(true)
     }
+
+    /// Is the filter narrow?
+    #[must_use]
+    pub fn is_narrow(&self) -> bool {
+        for element in self.elements() {
+            if element.get_type().is_narrow() {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Get the `FilterElement` of the given type, if it exists
+    #[must_use]
+    pub fn get_element(&self, typ: FilterElementType) -> Option<&FilterElement> {
+        self.elements().find(|&element| element.get_type() == typ)
+    }
 }
 
 /// An iterator of the `FilterElement`s of a `Filter`
