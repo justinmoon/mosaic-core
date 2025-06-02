@@ -73,8 +73,10 @@ mod error;
 pub use error::{Error, InnerError};
 
 mod filter;
-pub use filter::{Filter, FilterElement, FilterElementType, OwnedFilterElement};
-
+pub use filter::{
+    FeIdPrefixesIter, FeKeysIter, FeKindsIter, FeTagsIter, FeTimestampsIter, Filter, FilterElement,
+    FilterElementType, OwnedFilterElement,
+};
 mod id;
 pub use id::Id;
 

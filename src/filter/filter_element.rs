@@ -260,6 +260,233 @@ impl FilterElement {
             FilterElementType(u) => Err(InnerError::UnknownFilterElement(u).into()),
         }
     }
+
+    /// Iterate over the keys
+    #[must_use]
+    pub fn keys(&self) -> Option<FeKeysIter> {
+        match self.get_type() {
+            FilterElementType::AUTHOR_KEYS | FilterElementType::SIGNING_KEYS => Some(FeKeysIter {
+                fe: self,
+                offset: 8,
+            }),
+            _ => None,
+        }
+    }
+
+    /// Iterate over the `Kind`s
+    #[must_use]
+    pub fn kinds(&self) -> Option<FeKindsIter> {
+        match self.get_type() {
+            FilterElementType::KINDS => Some(FeKindsIter {
+                fe: self,
+                offset: 8,
+            }),
+            _ => None,
+        }
+    }
+
+    /// Iterate over the `Timestamp`s
+    #[must_use]
+    pub fn timestamps(&self) -> Option<FeTimestampsIter> {
+        match self.get_type() {
+            FilterElementType::TIMESTAMPS => Some(FeTimestampsIter {
+                fe: self,
+                offset: 8,
+            }),
+            _ => None,
+        }
+    }
+
+    /// Iterate over the `Tag`s
+    #[must_use]
+    pub fn tags(&self) -> Option<FeTagsIter> {
+        match self.get_type() {
+            FilterElementType::INCLUDED_TAGS | FilterElementType::EXCLUDED_TAGS => {
+                Some(FeTagsIter {
+                    fe: self,
+                    offset: 8,
+                })
+            }
+            _ => None,
+        }
+    }
+
+    /// Get the since `Timestamp`
+    ///
+    /// # Errors
+    ///
+    /// Returns an Err if any Timestamp in the Filter is invalid
+    #[allow(clippy::missing_panics_doc)]
+    pub fn since(&self) -> Result<Option<Timestamp>, Error> {
+        match self.get_type() {
+            FilterElementType::SINCE | FilterElementType::RECEIVED_SINCE => Ok(Some(
+                Timestamp::from_bytes(self.0[10..16].try_into().unwrap())?,
+            )),
+            _ => Ok(None),
+        }
+    }
+
+    /// Get the until `Timestamp`
+    ///
+    /// # Errors
+    ///
+    /// Returns an Err if any Timestamp in the Filter is invalid
+    #[allow(clippy::missing_panics_doc)]
+    pub fn until(&self) -> Result<Option<Timestamp>, Error> {
+        match self.get_type() {
+            FilterElementType::UNTIL | FilterElementType::RECEIVED_UNTIL => Ok(Some(
+                Timestamp::from_bytes(self.0[10..16].try_into().unwrap())?,
+            )),
+            _ => Ok(None),
+        }
+    }
+
+    /// Iterate over the `Id`s
+    #[must_use]
+    pub fn ids(&self) -> Option<FeIdPrefixesIter> {
+        match self.get_type() {
+            FilterElementType::EXCLUDE => Some(FeIdPrefixesIter {
+                fe: self,
+                offset: 8,
+            }),
+            _ => None,
+        }
+    }
+}
+
+/// Iterator over the `Key`s of a `FilterElement::AUTHOR_KEYS` or a
+/// `FilterElement::SIGNING_KEYS`
+#[derive(Debug)]
+pub struct FeKeysIter<'a> {
+    fe: &'a FilterElement,
+    offset: usize,
+}
+
+impl Iterator for FeKeysIter<'_> {
+    type Item = PublicKey;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let bytelen = self.fe.0.len();
+        if bytelen < self.offset + 32 {
+            None
+        } else {
+            let bytes = self.fe.0[self.offset..self.offset + 32].try_into().unwrap();
+            match PublicKey::from_bytes(bytes) {
+                Ok(pk) => {
+                    self.offset += 32;
+                    Some(pk)
+                }
+                Err(_) => None,
+            }
+        }
+    }
+}
+
+/// Iterator over the `Kind`s of a `FilterElement::KINDS`
+#[derive(Debug)]
+pub struct FeKindsIter<'a> {
+    fe: &'a FilterElement,
+    offset: usize,
+}
+
+impl Iterator for FeKindsIter<'_> {
+    type Item = Kind;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let numkinds = self.fe.0[7] as usize;
+        let bytelen = 8 + numkinds * 2;
+        if bytelen < self.offset + 2 {
+            None
+        } else {
+            let bytes = self.fe.0[self.offset..self.offset + 2].try_into().unwrap();
+            self.offset += 2;
+            Some(Kind::from_bytes(bytes))
+        }
+    }
+}
+
+/// Iterator over the `Timestamp`s of a `FilterElement::TIMESTAMPS`
+#[derive(Debug)]
+pub struct FeTimestampsIter<'a> {
+    fe: &'a FilterElement,
+    offset: usize,
+}
+
+impl Iterator for FeTimestampsIter<'_> {
+    type Item = Timestamp;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let bytelen = self.fe.0.len();
+        if bytelen < self.offset + 8 {
+            None
+        } else {
+            let bytes = self.fe.0[self.offset + 2..self.offset + 8]
+                .try_into()
+                .unwrap();
+            match Timestamp::from_bytes(bytes) {
+                Ok(ts) => {
+                    self.offset += 8;
+                    Some(ts)
+                }
+                Err(_) => None,
+            }
+        }
+    }
+}
+
+/// Iterator over the `Tag`s of a `FilterElement::INCLUDED_TAGS` or a
+/// `FilterElement::EXCLUDED_TAGS`
+#[derive(Debug)]
+pub struct FeTagsIter<'a> {
+    fe: &'a FilterElement,
+    offset: usize,
+}
+
+impl<'a> Iterator for FeTagsIter<'a> {
+    type Item = &'a Tag;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let bytelen = self.fe.0.len();
+        if bytelen < self.offset + 3 {
+            None
+        } else {
+            let datalen = self.fe.0[self.offset + 2] as usize;
+            if bytelen < self.offset + 3 + datalen {
+                None
+            } else {
+                match unsafe { Tag::from_bytes(&self.fe.0[self.offset..self.offset + 3 + datalen]) }
+                {
+                    Ok(tag) => {
+                        self.offset += 3 + datalen;
+                        Some(tag)
+                    }
+                    Err(_) => None,
+                }
+            }
+        }
+    }
+}
+
+/// Iterator over the `Id`s of a `FilterElement::EXCLUDE`
+#[derive(Debug)]
+pub struct FeIdPrefixesIter<'a> {
+    fe: &'a FilterElement,
+    offset: usize,
+}
+
+impl Iterator for FeIdPrefixesIter<'_> {
+    type Item = [u8; 32];
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let bytelen = self.fe.0.len();
+        if bytelen < self.offset + 32 {
+            None
+        } else {
+            let bytes = self.fe.0[self.offset..self.offset + 32].try_into().unwrap();
+            self.offset += 32;
+            Some(bytes)
+        }
+    }
 }
 
 /// A single `OwnedFilterElement`
@@ -353,7 +580,7 @@ impl OwnedFilterElement {
         bytes[0] = FilterElementType::TIMESTAMPS.0;
         bytes[1] = numcells as u8;
         for (i, stamp) in timestamps.iter().enumerate() {
-            bytes[8 + i * 8..8 + i * 8 + 8].copy_from_slice(stamp.to_bytes().as_slice());
+            bytes[8 + i * 8 + 2..8 + i * 8 + 8].copy_from_slice(stamp.to_bytes().as_slice());
         }
         Ok(OwnedFilterElement(bytes))
     }
@@ -565,5 +792,159 @@ mod test {
         assert_eq!(fe2_k.matches(&record).unwrap(), false);
 
         // TBD: This test could be far more complete
+    }
+
+    #[test]
+    fn test_filter_element_iters() {
+        use rand::rngs::OsRng;
+        let mut csprng = OsRng;
+        use crate::OwnedTag;
+
+        let secret_key1 = SecretKey::generate(&mut csprng);
+        let key1 = secret_key1.public();
+        let secret_key2 = SecretKey::generate(&mut csprng);
+        let key2 = secret_key2.public();
+        let secret_key3 = SecretKey::generate(&mut csprng);
+        let key3 = secret_key3.public();
+
+        // author_keys
+        let fe = OwnedFilterElement::new_author_keys(&[key1, key2, key3]).unwrap();
+        assert!(fe.kinds().is_none());
+        assert!(fe.timestamps().is_none());
+        assert!(fe.tags().is_none());
+        assert!(fe.since().unwrap().is_none());
+        assert!(fe.until().unwrap().is_none());
+        assert!(fe.ids().is_none());
+        let mut iter = fe.keys().unwrap();
+        assert_eq!(iter.next(), Some(key1));
+        assert_eq!(iter.next(), Some(key2));
+        assert_eq!(iter.next(), Some(key3));
+        assert_eq!(iter.next(), None);
+
+        // signing_keys
+        let fe = OwnedFilterElement::new_signing_keys(&[key1, key2, key3]).unwrap();
+        assert!(fe.kinds().is_none());
+        assert!(fe.timestamps().is_none());
+        assert!(fe.tags().is_none());
+        assert!(fe.since().unwrap().is_none());
+        assert!(fe.until().unwrap().is_none());
+        assert!(fe.ids().is_none());
+        let mut iter = fe.keys().unwrap();
+        assert_eq!(iter.next(), Some(key1));
+        assert_eq!(iter.next(), Some(key2));
+        assert_eq!(iter.next(), Some(key3));
+        assert_eq!(iter.next(), None);
+
+        // kinds
+        let fe = OwnedFilterElement::new_kinds(&[Kind::KEY_SCHEDULE, Kind::BLOG_POST]).unwrap();
+        assert!(fe.keys().is_none());
+        assert!(fe.timestamps().is_none());
+        assert!(fe.tags().is_none());
+        assert!(fe.since().unwrap().is_none());
+        assert!(fe.until().unwrap().is_none());
+        assert!(fe.ids().is_none());
+        let mut iter = fe.kinds().unwrap();
+        assert_eq!(iter.next(), Some(Kind::KEY_SCHEDULE));
+        assert_eq!(iter.next(), Some(Kind::BLOG_POST));
+        assert_eq!(iter.next(), None);
+
+        // timestamps
+        let ts1 = Timestamp::from_millis(100000).unwrap();
+        let ts2 = Timestamp::now().unwrap();
+        let fe = OwnedFilterElement::new_timestamps(&[ts1, ts2]).unwrap();
+        assert!(fe.keys().is_none());
+        assert!(fe.kinds().is_none());
+        assert!(fe.tags().is_none());
+        assert!(fe.since().unwrap().is_none());
+        assert!(fe.until().unwrap().is_none());
+        assert!(fe.ids().is_none());
+        let mut iter = fe.timestamps().unwrap();
+        assert_eq!(iter.next(), Some(ts1));
+        assert_eq!(iter.next(), Some(ts2));
+        assert_eq!(iter.next(), None);
+
+        // includes tags
+        let t1 = OwnedTag::new_notify_public_key(&key1);
+        let t2 = OwnedTag::new_subkey(&key2);
+        let fe = OwnedFilterElement::new_included_tags(&[&t1, &t2]).unwrap();
+        assert!(fe.keys().is_none());
+        assert!(fe.kinds().is_none());
+        assert!(fe.timestamps().is_none());
+        assert!(fe.since().unwrap().is_none());
+        assert!(fe.until().unwrap().is_none());
+        assert!(fe.ids().is_none());
+        let mut iter = fe.tags().unwrap();
+        assert_eq!(iter.next(), Some(&*t1));
+        assert_eq!(iter.next(), Some(&*t2));
+        assert_eq!(iter.next(), None);
+
+        // since
+        let ts = Timestamp::now().unwrap();
+        let fe = OwnedFilterElement::new_since(ts);
+        assert!(fe.keys().is_none());
+        assert!(fe.kinds().is_none());
+        assert!(fe.timestamps().is_none());
+        assert!(fe.tags().is_none());
+        assert!(fe.until().unwrap().is_none());
+        assert!(fe.ids().is_none());
+        assert_eq!(fe.since().unwrap(), Some(ts));
+
+        // until
+        let fe = OwnedFilterElement::new_until(ts);
+        assert!(fe.keys().is_none());
+        assert!(fe.kinds().is_none());
+        assert!(fe.timestamps().is_none());
+        assert!(fe.tags().is_none());
+        assert!(fe.since().unwrap().is_none());
+        assert!(fe.ids().is_none());
+        assert_eq!(fe.until().unwrap(), Some(ts));
+
+        // Received since
+        let fe = OwnedFilterElement::new_received_since(ts);
+        assert!(fe.keys().is_none());
+        assert!(fe.kinds().is_none());
+        assert!(fe.timestamps().is_none());
+        assert!(fe.tags().is_none());
+        assert!(fe.until().unwrap().is_none());
+        assert!(fe.ids().is_none());
+        assert_eq!(fe.since().unwrap(), Some(ts));
+
+        // Received until
+        let fe = OwnedFilterElement::new_received_until(ts);
+        assert!(fe.keys().is_none());
+        assert!(fe.kinds().is_none());
+        assert!(fe.timestamps().is_none());
+        assert!(fe.tags().is_none());
+        assert!(fe.since().unwrap().is_none());
+        assert!(fe.ids().is_none());
+        assert_eq!(fe.until().unwrap(), Some(ts));
+
+        // Exclude
+        let id1 = Id::from_parts(&[0_u8; 40], ts1);
+        let id2 = Id::from_parts(&[1_u8; 40], ts2);
+        let fe = OwnedFilterElement::new_exclude(&[id1, id2]).unwrap();
+        assert!(fe.keys().is_none());
+        assert!(fe.kinds().is_none());
+        assert!(fe.timestamps().is_none());
+        assert!(fe.tags().is_none());
+        assert!(fe.since().unwrap().is_none());
+        assert!(fe.until().unwrap().is_none());
+        let mut iter = fe.ids().unwrap();
+        assert_eq!(iter.next(), Some(id1.as_bytes()[..32].try_into().unwrap()));
+        assert_eq!(iter.next(), Some(id2.as_bytes()[..32].try_into().unwrap()));
+        assert_eq!(iter.next(), None);
+
+        // excludes tags
+        let fe = OwnedFilterElement::new_excluded_tags(&[&t1, &t2]).unwrap();
+        assert!(fe.keys().is_none());
+        assert!(fe.kinds().is_none());
+        assert!(fe.timestamps().is_none());
+        assert!(fe.since().unwrap().is_none());
+        assert!(fe.until().unwrap().is_none());
+        assert!(fe.ids().is_none());
+        let mut iter = fe.tags().unwrap();
+        assert_eq!(iter.next(), Some(&*t1));
+        assert_eq!(iter.next(), Some(&*t2));
+        assert_eq!(iter.next(), None);
     }
 }
