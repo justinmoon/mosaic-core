@@ -174,6 +174,18 @@ impl Timestamp {
             Ok(Timestamp(MAX_MILLISECONDS - millis))
         }
     }
+
+    /// Minimum `Timestamp`
+    #[must_use]
+    pub fn min() -> Timestamp {
+        Timestamp(0)
+    }
+
+    /// Maximum `Timestamp`
+    #[must_use]
+    pub fn max() -> Timestamp {
+        Timestamp(MAX_MILLISECONDS)
+    }
 }
 
 // https://data.iana.org/time-zones/data/leap-seconds.list
