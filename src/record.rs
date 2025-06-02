@@ -618,7 +618,9 @@ impl<'a> Iterator for TagsIter<'a> {
                 None
             } else {
                 self.offset += 3 + data_len; // prepare offset for next tag
-                Some(unsafe { Tag::from_bytes(&self.bytes[offset..offset + 3 + data_len]).unwrap() })
+                Some(unsafe {
+                    Tag::from_bytes(&self.bytes[offset..offset + 3 + data_len]).unwrap()
+                })
             }
         }
     }
