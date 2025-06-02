@@ -88,14 +88,14 @@ impl Tag {
         if input.len() < 3 {
             return Err(InnerError::EndOfInput.into());
         }
-        let len = input[2] as usize;
-        if len < 3 {
+        let datalen = input[2] as usize;
+        if datalen > 253 {
             return Err(InnerError::InvalidTag.into());
         }
-        if input.len() < len {
+        if input.len() < 3 + datalen {
             return Err(InnerError::EndOfInput.into());
         }
-        Ok(Self::from_inner(&input[0..len]))
+        Ok(Self::from_inner(&input[0..3 + datalen]))
     }
 
     /// Copy to an allocated owned data type
@@ -230,7 +230,7 @@ impl Tag {
             return Err(InnerError::EndOfOutput.into());
         }
         buffer[0..2].copy_from_slice(TagType::NOTIFY_PUBLIC_KEY.0.to_le_bytes().as_slice());
-        buffer[2] = LEN as u8;
+        buffer[2] = (LEN - 3) as u8;
         buffer[8..LEN].copy_from_slice(public_key.as_bytes().as_slice());
         Ok(Tag::from_inner(&buffer[..LEN]))
     }
@@ -251,7 +251,7 @@ impl Tag {
             return Err(InnerError::EndOfOutput.into());
         }
         buffer[0..2].copy_from_slice(TagType::REPLY.0.to_le_bytes().as_slice());
-        buffer[2] = LEN as u8;
+        buffer[2] = (LEN - 3) as u8;
         buffer[6..8].copy_from_slice(kind.0.to_le_bytes().as_slice());
         buffer[8..LEN].copy_from_slice(refer.as_bytes().as_slice());
         Ok(Tag::from_inner(&buffer[..LEN]))
@@ -273,7 +273,7 @@ impl Tag {
             return Err(InnerError::EndOfOutput.into());
         }
         buffer[0..2].copy_from_slice(TagType::ROOT.0.to_le_bytes().as_slice());
-        buffer[2] = LEN as u8;
+        buffer[2] = (LEN - 3) as u8;
         buffer[6..8].copy_from_slice(kind.0.to_le_bytes().as_slice());
         buffer[8..LEN].copy_from_slice(refer.as_bytes().as_slice());
         Ok(Tag::from_inner(&buffer[..LEN]))
@@ -291,7 +291,7 @@ impl Tag {
             return Err(InnerError::EndOfOutput.into());
         }
         buffer[0..2].copy_from_slice(TagType::NOSTR_SISTER.0.to_le_bytes().as_slice());
-        buffer[2] = LEN as u8;
+        buffer[2] = (LEN - 3) as u8;
         buffer[8..LEN].copy_from_slice(id.as_slice());
         Ok(Tag::from_inner(&buffer[..LEN]))
     }
@@ -311,7 +311,7 @@ impl Tag {
             return Err(InnerError::EndOfOutput.into());
         }
         buffer[0..2].copy_from_slice(TagType::SUBKEY.0.to_le_bytes().as_slice());
-        buffer[2] = LEN as u8;
+        buffer[2] = (LEN - 3) as u8;
         buffer[8..LEN].copy_from_slice(public_key.as_bytes().as_slice());
         Ok(Tag::from_inner(&buffer[..LEN]))
     }
@@ -337,7 +337,7 @@ impl Tag {
                 .to_le_bytes()
                 .as_slice(),
         );
-        buffer[2] = LEN as u8;
+        buffer[2] = (LEN - 3) as u8;
         buffer[4..8].copy_from_slice(offset.to_le_bytes().as_slice());
         buffer[8..LEN].copy_from_slice(public_key.as_bytes().as_slice());
         Ok(Tag::from_inner(&buffer[..LEN]))
@@ -364,7 +364,7 @@ impl Tag {
                 .to_le_bytes()
                 .as_slice(),
         );
-        buffer[2] = LEN as u8;
+        buffer[2] = (LEN - 3) as u8;
         buffer[4..8].copy_from_slice(offset.to_le_bytes().as_slice());
         buffer[8..LEN].copy_from_slice(public_key.as_bytes().as_slice());
         Ok(Tag::from_inner(&buffer[..LEN]))
@@ -387,7 +387,7 @@ impl Tag {
             return Err(InnerError::EndOfOutput.into());
         }
         buffer[0..2].copy_from_slice(TagType::CONTENT_SEGMENT_QUOTE.0.to_le_bytes().as_slice());
-        buffer[2] = LEN as u8;
+        buffer[2] = (LEN - 3) as u8;
         buffer[4..8].copy_from_slice(offset.to_le_bytes().as_slice());
         buffer[14..16].copy_from_slice(kind.0.to_le_bytes().as_slice());
         buffer[16..LEN].copy_from_slice(refer.as_bytes().as_slice());
@@ -410,7 +410,7 @@ impl Tag {
             return Err(InnerError::EndOfOutput.into());
         }
         buffer[0..2].copy_from_slice(TagType::CONTENT_SEGMENT_URL.0.to_le_bytes().as_slice());
-        buffer[2] = len as u8;
+        buffer[2] = (len - 3) as u8;
         buffer[4..8].copy_from_slice(offset.to_le_bytes().as_slice());
         buffer[8..len].copy_from_slice(url.as_bytes());
         Ok(Tag::from_inner(&buffer[..len]))
@@ -432,7 +432,7 @@ impl Tag {
             return Err(InnerError::EndOfOutput.into());
         }
         buffer[0..2].copy_from_slice(TagType::CONTENT_SEGMENT_IMAGE.0.to_le_bytes().as_slice());
-        buffer[2] = len as u8;
+        buffer[2] = (len - 3) as u8;
         buffer[4..8].copy_from_slice(offset.to_le_bytes().as_slice());
         buffer[8..len].copy_from_slice(url.as_bytes());
         Ok(Tag::from_inner(&buffer[..len]))
@@ -454,7 +454,7 @@ impl Tag {
             return Err(InnerError::EndOfOutput.into());
         }
         buffer[0..2].copy_from_slice(TagType::CONTENT_SEGMENT_VIDEO.0.to_le_bytes().as_slice());
-        buffer[2] = len as u8;
+        buffer[2] = (len - 3) as u8;
         buffer[4..8].copy_from_slice(offset.to_le_bytes().as_slice());
         buffer[8..len].copy_from_slice(url.as_bytes());
         Ok(Tag::from_inner(&buffer[..len]))
@@ -481,7 +481,7 @@ impl OwnedTag {
         }
         let mut buffer = vec![0; 3 + len];
         buffer[0..1].copy_from_slice(ty.into_u16().to_be_bytes().as_slice());
-        buffer[2] = u8::try_from(len).unwrap();
+        buffer[2] = u8::try_from(len - 3).unwrap();
         buffer[3..].copy_from_slice(value.as_ref());
         Ok(OwnedTag(buffer))
     }

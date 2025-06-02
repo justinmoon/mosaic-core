@@ -613,12 +613,12 @@ impl<'a> Iterator for TagsIter<'a> {
         if full_len < offset + 3 {
             None
         } else {
-            let len = self.bytes[offset + 2] as usize;
-            if full_len < offset + len {
+            let data_len = self.bytes[offset + 2] as usize;
+            if full_len < offset + 3 + data_len {
                 None
             } else {
-                self.offset += len; // prepare offset for next tag
-                Some(unsafe { Tag::from_bytes(&self.bytes[offset..offset + len]).unwrap() })
+                self.offset += 3 + data_len; // prepare offset for next tag
+                Some(unsafe { Tag::from_bytes(&self.bytes[offset..offset + 3 + data_len]).unwrap() })
             }
         }
     }
@@ -632,13 +632,13 @@ mod test {
     fn test_tags_iterator() {
         let example: Vec<u8> = vec![
             1, 0, // type 1,
-            7, // length (3+4)
+            4, // data length
             10, 9, 8, 7, // data
             2, 0, // type 2
-            9, // length (3+6)
+            6, // data length
             1, 2, 3, 4, 5, 6, // data
             3, 1, // type
-            6, // length (3+3)
+            3, // data length
             3, 4, 5, // data
         ];
 
