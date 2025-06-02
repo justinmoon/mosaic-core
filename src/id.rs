@@ -23,6 +23,15 @@ impl Id {
         Ok(Id(bytes.to_owned()))
     }
 
+    /// Create an ID from a hash and a `Timestamp`
+    #[must_use]
+    pub fn from_parts(hash_prefix: &[u8; 40], timestamp: Timestamp) -> Id {
+        let mut buffer: [u8; 48] = [0; 48];
+        buffer[8..48].copy_from_slice(&hash_prefix[..40]);
+        buffer[0..6].copy_from_slice(timestamp.be_reverse_bytes().as_slice());
+        Id(buffer)
+    }
+
     pub(crate) fn from_bytes_no_verify(bytes: &[u8; 48]) -> Id {
         Id(bytes.to_owned())
     }
