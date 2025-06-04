@@ -1,4 +1,6 @@
 use crate::{Error, InnerError};
+use std::ops::{Add, Sub};
+use std::time::Duration;
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -10,32 +12,33 @@ use instant::SystemTime;
 const UNIX_EPOCH: SystemTime = SystemTime::UNIX_EPOCH;
 
 /// The largest timestamp (milliseconds).
-pub const MAX_MILLISECONDS: u64 = 0x7FFF_FFFF_FFFF;
+pub const MAX_NANOSECONDS: i64 = i64::MAX;
 
-/// A timestamp is a value that represents the number of milliseconds
-/// elapsed since the UNIX EPOCH (including leap seconds!). While stored
-/// in a u64, it serializes to 47 bits and thus must be <= `MAX_MILLISECONDS`.
-// NOTE: This must have a maximum of 47 bits, with the 48 bit zeroed.
+/// A timestamp is a value that represents the number of nanoseconds that have
+/// elapsed on the surface of the Earth since the UNIX EPOCH (including within
+/// leap seconds!).
+///
+// SAFETY: It must be impossible to create a Timestamp with a negative internal value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Timestamp(u64);
+pub struct Timestamp(i64);
 
 impl Timestamp {
-    /// This creates a timestamp from a number of milliseconds from the `UNIX_EPOCH`.
+    /// This creates a timestamp from a number of nanoseconds from the `UNIX_EPOCH`.
     ///
-    /// If the parameter is larger than the maximum 47-bit value,
-    /// it will return None.
-    #[must_use]
-    pub fn from_millis(millis: u64) -> Option<Timestamp> {
-        if millis > MAX_MILLISECONDS {
-            None
+    /// # Errors
+    ///
+    /// Return an Err if the input is negative.
+    pub fn from_nanoseconds(nanos: i64) -> Result<Timestamp, Error> {
+        if nanos < 0 {
+            Err(InnerError::TimeOutOfRange.into())
         } else {
-            Some(Timestamp(millis))
+            Ok(Timestamp(nanos))
         }
     }
 
-    /// As milliseconds from the `UNIX_EPOCH`
+    /// As nanoseconds from the `UNIX_EPOCH`
     #[must_use]
-    pub fn as_millis(&self) -> u64 {
+    pub fn as_nanoseconds(&self) -> i64 {
         self.0
     }
 
@@ -43,135 +46,105 @@ impl Timestamp {
     ///
     /// # Errors
     ///
-    /// Returns an `Err` if microseconds is >= 1000, if the time is beyond the leapsecond
-    /// expiry date, or the resultant timestamp is numerically out of valid range.
-    pub fn from_unixtime(seconds: u64, microseconds: u64) -> Result<Timestamp, Error> {
-        if microseconds >= 1000 {
+    /// Returns an `Err` if `subsec_nanoseconds` is > `999_999_999`, if the time is beyond the
+    /// leapsecond expiry date, or the resultant timestamp is numerically out of valid range.
+    pub fn from_unixtime(seconds: u64, subsec_nanoseconds: u64) -> Result<Timestamp, Error> {
+        if subsec_nanoseconds > 999_999_999 {
             return Err(InnerError::TimeOutOfRange.into());
         }
         if seconds > LEAP_SECONDS_EXPIRE {
             return Err(InnerError::TimeIsBeyondLeapSecondData.into());
         }
 
+        #[allow(clippy::cast_possible_wrap)]
         let leaps = iana_ntp_leap_seconds()
             .iter()
-            .map(|ntp| ntp - 2_208_988_800)
+            .map(|ntp| ntp - NTP_TIME_UNIXTIME_OFFSET)
             .filter(|x| *x < seconds)
-            .count() as u64;
+            .count() as i64;
 
-        let millis: u64 = seconds
+        #[allow(clippy::cast_possible_wrap)]
+        let nanos: i64 = (seconds as i64)
             .checked_add(leaps)
             .ok_or(InnerError::TimeOutOfRange.into_err())?
-            .checked_mul(1000)
+            .checked_mul(1_000_000_000)
             .ok_or(InnerError::TimeOutOfRange.into_err())?
-            .checked_add(microseconds)
+            .checked_add(subsec_nanoseconds as i64)
             .ok_or(InnerError::TimeOutOfRange.into_err())?;
 
-        if millis > MAX_MILLISECONDS {
-            Err(InnerError::TimeOutOfRange.into())
-        } else {
-            Ok(Timestamp(millis))
-        }
+        Ok(Timestamp(nanos))
     }
 
-    /// Converts to unixtime seconds and milliseconds
+    /// Converts to unixtime seconds and `subsec_nanoseconds`
     #[must_use]
     pub fn to_unixtime(&self) -> (u64, u64) {
-        let unadjusted_secs = self.0 / 1000;
-        let microsecs = self.0 % 1000;
+        #[allow(clippy::cast_sign_loss)]
+        let unadjusted_secs = self.0 as u64 / 1_000_000_000;
+
+        #[allow(clippy::cast_sign_loss)]
+        let nanosecs = self.0 as u64 % 1_000_000_000;
 
         let leaps = iana_ntp_leap_seconds()
             .iter()
             .enumerate()
-            .map(|(i, ntp)| ntp - 2_208_988_800 + 1 + i as u64)
+            .map(|(i, ntp)| ntp - NTP_TIME_UNIXTIME_OFFSET + 1 + i as u64)
             .filter(|x| *x < unadjusted_secs)
             .count() as u64;
 
-        (unadjusted_secs - leaps, microsecs)
+        (unadjusted_secs - leaps, nanosecs)
     }
 
     /// Get the current time
     ///
     /// # Errors
     ///
-    /// Returns an error if the current time is before the `UNIX_EPOCH`
+    /// Returns an error if the current time is before the `UNIX_EPOCH` or beyond
+    /// the leap second expiry date.
     pub fn now() -> Result<Timestamp, Error> {
         let duration = SystemTime::now().duration_since(UNIX_EPOCH)?;
 
-        Self::from_unixtime(duration.as_secs(), u64::from(duration.subsec_millis()))
+        Self::from_unixtime(duration.as_secs(), u64::from(duration.subsec_nanos()))
     }
 
-    /// Returns a 6-byte little-endian byte array
+    /// Returns an 8-byte big-endian byte array
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
-    pub fn to_bytes(&self) -> [u8; 6] {
-        <[u8; 6]>::try_from(&self.0.to_le_bytes()[..6]).unwrap()
+    pub fn to_bytes(&self) -> [u8; 8] {
+        self.0.to_be_bytes()
     }
 
-    /// Returns a 6-byte big-endian byte array
-    #[allow(clippy::missing_panics_doc)]
-    #[must_use]
-    pub fn to_be_bytes(&self) -> [u8; 6] {
-        <[u8; 6]>::try_from(&self.0.to_be_bytes()[2..8]).unwrap()
-    }
-
-    /// Create from a 6-byte little-endian slice
+    /// Create from an 8-byte big-endian slice
     ///
     /// # Errors
     ///
     /// Returns an error if the data is out of range for a `Timestamp`
-    pub fn from_bytes(slice: &[u8; 6]) -> Result<Timestamp, Error> {
-        let mut eight: [u8; 8] = [0; 8];
-        eight[..6].copy_from_slice(slice);
-        let millis: u64 = u64::from_le_bytes(eight);
-
-        if millis > MAX_MILLISECONDS {
+    pub fn from_bytes(slice: [u8; 8]) -> Result<Timestamp, Error> {
+        let n: i64 = i64::from_be_bytes(slice);
+        if n < 0 {
             Err(InnerError::TimeOutOfRange.into())
         } else {
-            Ok(Timestamp(millis))
+            Ok(Timestamp(n))
         }
     }
 
-    /// Create from a 6-byte big-endian slice
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if the data is out of range for a `Timestamp`
-    pub fn from_be_bytes(slice: &[u8; 6]) -> Result<Timestamp, Error> {
-        let mut eight: [u8; 8] = [0; 8];
-        eight[2..8].copy_from_slice(slice);
-        let millis: u64 = u64::from_be_bytes(eight);
-
-        if millis > MAX_MILLISECONDS {
-            Err(InnerError::TimeOutOfRange.into())
-        } else {
-            Ok(Timestamp(millis))
-        }
-    }
-
-    /// Inverse
-    ///
-    /// This gives you six bytes that sorts from newest to oldest
-    /// by subtracting the timestamp milliseconds from `MAX_TIMESTAMP`
+    /// This gives you a sequence of bytes, still in big endian, that
+    /// sorts from maximum time to minimum time lexographically.
     #[must_use]
-    pub fn be_reverse_bytes(&self) -> [u8; 6] {
-        Timestamp(MAX_MILLISECONDS - self.0).to_be_bytes()
+    pub fn to_inverse_bytes(&self) -> [u8; 8] {
+        (MAX_NANOSECONDS - self.0).to_be_bytes()
     }
 
-    /// Create from a 6-byte big-endian reverse timestamp slice
+    /// Create from an 8-byte big-endian slice that was created with `to_inverse_bytes()`
     ///
     /// # Errors
     ///
     /// Returns an error if the data is out of range for a `Timestamp`
-    pub fn from_be_reverse_bytes(slice: &[u8; 6]) -> Result<Timestamp, Error> {
-        let mut eight: [u8; 8] = [0; 8];
-        eight[2..8].copy_from_slice(slice);
-        let millis: u64 = u64::from_be_bytes(eight);
-
-        if millis > MAX_MILLISECONDS {
+    pub fn from_inverse_bytes(slice: [u8; 8]) -> Result<Timestamp, Error> {
+        let n: i64 = i64::from_be_bytes(slice);
+        if n < 0 {
             Err(InnerError::TimeOutOfRange.into())
         } else {
-            Ok(Timestamp(MAX_MILLISECONDS - millis))
+            Ok(Timestamp(MAX_NANOSECONDS - n))
         }
     }
 
@@ -184,19 +157,23 @@ impl Timestamp {
     /// Maximum `Timestamp`
     #[must_use]
     pub fn max() -> Timestamp {
-        Timestamp(MAX_MILLISECONDS)
+        Timestamp(MAX_NANOSECONDS)
     }
 }
 
 // https://data.iana.org/time-zones/data/leap-seconds.list
 //
-// Expires 28 June 2025
-const LEAP_SECONDS_EXPIRE: u64 = 1_751_068_800; // unixtime
-                                                //
+// Expires 28 December 2025
+const LEAP_SECONDS_EXPIRE: u64 = 1_766_880_000; // unixtime
+
+const NTP_TIME_UNIXTIME_OFFSET: u64 = 2_208_988_800;
+
+// const EPOCH_2020_IN_UNIXTIME: u64 = 1577836800;
+
 #[allow(clippy::unreadable_literal)]
 fn iana_ntp_leap_seconds() -> Vec<u64> {
     vec![
-        // Unixtime
+        // NTP Time                           // Unixtime
         2272060800, //	10	# 1 Jan 1972      // 63072000
         2287785600, //	11	# 1 Jul 1972      // 78796800
         2303683200, //	12	# 1 Jan 1973      // 94694400
@@ -234,6 +211,49 @@ impl std::fmt::Display for Timestamp {
     }
 }
 
+impl Sub for Timestamp {
+    type Output = Duration;
+
+    fn sub(self, rhs: Timestamp) -> Self::Output {
+        if rhs.0 >= self.0 {
+            Duration::ZERO
+        } else {
+            #[allow(clippy::cast_sign_loss)]
+            Duration::from_nanos((self.0 - rhs.0) as u64)
+        }
+    }
+}
+
+impl Sub<Duration> for Timestamp {
+    type Output = Timestamp;
+
+    fn sub(self, rhs: Duration) -> Self::Output {
+        let rhs_nanos = rhs.as_nanos();
+        #[allow(clippy::cast_sign_loss)]
+        if rhs_nanos >= (self.0 as u128) {
+            Timestamp::min()
+        } else {
+            #[allow(clippy::cast_possible_truncation)]
+            Timestamp(self.0 - rhs_nanos as i64)
+        }
+    }
+}
+
+impl Add<Duration> for Timestamp {
+    type Output = Timestamp;
+
+    fn add(self, rhs: Duration) -> Self::Output {
+        let rhs_nanos = rhs.as_nanos();
+        #[allow(clippy::cast_sign_loss)]
+        if rhs_nanos + (self.0 as u128) > (i64::MAX as u128) {
+            Timestamp::max()
+        } else {
+            #[allow(clippy::cast_possible_truncation)]
+            Timestamp(self.0 + rhs_nanos as i64)
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -241,22 +261,17 @@ mod test {
     #[test]
     fn test_timestamp() {
         // Test a date in 1986 (14 leap seconds elapsed)
-        let timestamp = Timestamp::from_unixtime(500000000, 987).unwrap();
-        assert_eq!(timestamp.as_millis(), 500000014987);
+        let timestamp = Timestamp::from_unixtime(500000000, 987__000_000).unwrap();
+        assert_eq!(timestamp.as_nanoseconds(), 500_000_014_987_000_000);
 
         // Test a date in 2024 (28 leap seconds elapsed)
-        let timestamp = Timestamp::from_unixtime(1732950200, 1).unwrap();
-        assert_eq!(timestamp.as_millis(), 1732950228001);
+        let timestamp = Timestamp::from_unixtime(1732950200, 100_000_000).unwrap();
+        assert_eq!(timestamp.as_nanoseconds(), 1_732_950_228_100_000_000);
 
         // convert to and from a slice and compare
         let bytes = timestamp.to_bytes();
-        let timestamp2 = Timestamp::from_bytes(&bytes).unwrap();
+        let timestamp2 = Timestamp::from_bytes(bytes).unwrap();
         assert_eq!(timestamp, timestamp2);
-
-        // Test be_reverse
-        let ber = timestamp.be_reverse_bytes();
-        let orig = Timestamp::from_be_reverse_bytes(&ber).unwrap();
-        assert_eq!(timestamp, orig);
 
         // Print now
         println!("NOW={}", Timestamp::now().unwrap());
@@ -266,7 +281,7 @@ mod test {
     fn test_timestamp_unixtime_conversions() {
         // Trial 10 seconds before and after the 4th leapsecond
         for u in 126230400 - 10..126230400 + 10 {
-            let ts = Timestamp::from_unixtime(u, 500).unwrap();
+            let ts = Timestamp::from_unixtime(u, 500_000_000).unwrap();
             println!("{ts:?}"); // so you can see the leap
             let (u2, _) = ts.to_unixtime();
             assert_eq!(u, u2);

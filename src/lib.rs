@@ -77,6 +77,7 @@ pub use filter::{
     FeIdPrefixesIter, FeKeysIter, FeKindsIter, FeTagsIter, FeTimestampsIter, Filter, FilterElement,
     FilterElementType, OwnedFilterElement,
 };
+
 mod id;
 pub use id::Id;
 
@@ -102,7 +103,7 @@ mod tag;
 pub use tag::{OwnedTag, Tag, TagType};
 
 mod timestamp;
-pub use timestamp::{Timestamp, MAX_MILLISECONDS};
+pub use timestamp::{Timestamp, MAX_NANOSECONDS};
 
 mod uri;
 

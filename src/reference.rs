@@ -51,10 +51,10 @@ impl Reference {
     }
 
     fn verify(bytes: &[u8; 48]) -> Result<(), Error> {
-        if bytes[0] & (1 << 7) == 0 {
-            Id::verify(bytes)
-        } else {
+        if bytes[0] & (1 << 7) != 0 {
             Address::verify(bytes)
+        } else {
+            Ok(())
         }
     }
 
@@ -71,42 +71,54 @@ impl Reference {
     }
 
     /// If an Id, returns it
-    #[must_use]
-    pub fn as_id(&self) -> Option<Id> {
+    ///
+    /// # Errors
+    ///
+    /// Returns an Err if the reference is an Address
+    pub fn as_id(&self) -> Result<Id, Error> {
         if self.is_id() {
-            Some(Id::from_bytes_no_verify(&self.0))
+            Ok(Id::from_bytes(&self.0)?)
         } else {
-            None
+            Err(InnerError::NotAnId.into())
         }
     }
 
     /// If an Address, returns it
-    #[must_use]
-    pub fn as_address(&self) -> Option<Address> {
+    ///
+    /// # Errors
+    ///
+    /// Returns an Err if the reference is an Id
+    pub fn as_address(&self) -> Result<Address, Error> {
         if self.is_address() {
-            Some(Address::from_bytes_no_verify(&self.0))
+            Ok(Address::from_bytes(&self.0)?)
         } else {
-            None
+            Err(InnerError::NotAnAddress.into())
         }
     }
 
     /// Convert into an Id without copying
-    #[must_use]
-    pub fn into_id(self) -> Option<Id> {
+    ///
+    /// # Errors
+    ///
+    /// Returns an Err if the reference is an Address
+    pub fn into_id(self) -> Result<Id, Error> {
         if self.is_id() {
-            Some(Id::from_owned_bytes_no_verify(self.0))
+            Ok(Id::from_owned_bytes(self.0)?)
         } else {
-            None
+            Err(InnerError::NotAnId.into())
         }
     }
 
     /// Convert into an Address without copying
-    #[must_use]
-    pub fn into_address(self) -> Option<Address> {
+    ///
+    /// # Errors
+    ///
+    /// Returns an Err if the reference is an Id
+    pub fn into_address(self) -> Result<Address, Error> {
         if self.is_address() {
-            Some(Address::from_owned_bytes_no_verify(self.0))
+            Ok(Address::from_owned_bytes(self.0)?)
         } else {
-            None
+            Err(InnerError::NotAnAddress.into())
         }
     }
 }
@@ -134,8 +146,8 @@ mod test {
         let refer = Reference::from_printable(printable).unwrap();
         assert!(refer.is_id());
         assert!(!refer.is_address());
-        assert!(refer.as_id().is_some());
-        assert!(refer.as_address().is_none());
+        assert!(refer.as_id().is_ok());
+        assert!(refer.as_address().is_err());
         let id = refer.into_id().unwrap();
         assert_eq!(format!("{id}"), printable);
 
@@ -144,8 +156,8 @@ mod test {
         let refer = Reference::from_printable(printable).unwrap();
         assert!(!refer.is_id());
         assert!(refer.is_address());
-        assert!(refer.as_id().is_none());
-        assert!(refer.as_address().is_some());
+        assert!(refer.as_id().is_err());
+        assert!(refer.as_address().is_ok());
         let addr = refer.into_address().unwrap();
         assert_eq!(format!("{addr}"), printable);
     }

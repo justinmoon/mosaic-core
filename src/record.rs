@@ -16,6 +16,8 @@ use std::ops::{Deref, DerefMut, Range, RangeFrom};
 //   hash is correct
 //   signature is correct
 //   reserved flags are zero
+//   Id is valid (MSBit is clear)
+//   Address is valid (valid public key, MSBit is set)
 //   208 + tags_padded_len() + payload_padded_len() == self.0.len()
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct Record([u8]);
@@ -93,7 +95,6 @@ impl Record {
             address,
             parts.timestamp,
             parts.flags,
-            parts.app_flags,
             parts.tags_bytes,
             parts.payload,
         )
@@ -112,7 +113,6 @@ impl Record {
         address: Address,
         timestamp: Timestamp,
         flags: RecordFlags,
-        app_flags: u16,
         tags_bytes: &[u8],
         payload: &[u8],
     ) -> Result<&'a Record, Error> {
@@ -147,12 +147,11 @@ impl Record {
         let tags_len = tags_bytes.len() as u16;
         buffer[LEN_T_RANGE].copy_from_slice(tags_len.to_le_bytes().as_slice());
 
-        buffer[APPFLAGS_RANGE].copy_from_slice(app_flags.to_le_bytes().as_slice());
         buffer[TIMESTAMP_RANGE].copy_from_slice(timestamp.to_bytes().as_slice());
 
         buffer[FLAGS_RANGE].copy_from_slice(flags.bits().to_le_bytes().as_slice());
 
-        buffer[ADDRESS_RANGE].copy_from_slice(address.as_bytes().as_slice());
+        buffer[ADDR_RANGE].copy_from_slice(address.as_bytes().as_slice());
 
         let public_key = signing_secret_key.public();
         buffer[SIGNING_KEY_RANGE].copy_from_slice(public_key.as_bytes().as_slice());
@@ -161,9 +160,8 @@ impl Record {
         let mut hasher = blake3::Hasher::new();
         let _ = hasher.update(&buffer[HASHABLE_RANGE]);
         hasher.finalize_xof().fill(&mut truehash[..]);
-        buffer[HASH_RANGE].copy_from_slice(&truehash[..40]);
-
-        buffer[BE_REV_TIMESTAMP_RANGE].copy_from_slice(timestamp.be_reverse_bytes().as_slice());
+        buffer[ID_HASH_RANGE].copy_from_slice(&truehash[..40]);
+        buffer[ID_TIMESTAMP_RANGE].copy_from_slice(timestamp.to_bytes().as_slice());
 
         // Sign
         let digest = crate::crypto::Blake3 { h: hasher };
@@ -207,7 +205,7 @@ impl Record {
         let signing_public_key =
             PublicKey::from_bytes(self.0[SIGNING_KEY_RANGE].try_into().unwrap())?;
         let _author_public_key =
-            PublicKey::from_bytes(self.0[AUTHOR_KEY_RANGE].try_into().unwrap())?;
+            PublicKey::from_bytes(self.0[ADDR_AUTHOR_KEY_RANGE].try_into().unwrap())?;
 
         // Compute the true hash
         // (note we don't use fn full_hash() because we need to
@@ -218,13 +216,12 @@ impl Record {
         hasher.finalize_xof().fill(&mut truehash[..]);
 
         // Compare the start of the true hash to the claimed hash
-        if truehash[..40] != self.0[HASH_RANGE] {
+        if truehash[..40] != self.0[ID_HASH_RANGE] {
             return Err(InnerError::HashMismatch.into());
         }
 
         // Verify the timestamps
-        let id_timestamp =
-            Timestamp::from_be_reverse_bytes(&self.0[BE_REV_TIMESTAMP_RANGE].try_into().unwrap())?;
+        let id_timestamp = Timestamp::from_bytes(self.0[ID_TIMESTAMP_RANGE].try_into().unwrap())?;
         let timestamp = Timestamp::from_bytes(self.0[TIMESTAMP_RANGE].try_into().unwrap())?;
         if id_timestamp != timestamp {
             return Err(InnerError::TimestampMismatch.into());
@@ -241,10 +238,6 @@ impl Record {
         let flags = self.flags();
         if flags | RecordFlags::all() != RecordFlags::all() {
             return Err(InnerError::ReservedFlagsUsed.into());
-        }
-
-        if self.0[70] != 0 || self.0[71] != 0 {
-            return Err(InnerError::IdZerosAreNotZero.into());
         }
 
         Ok(())
@@ -271,14 +264,14 @@ impl Record {
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
     pub fn id(&self) -> Id {
-        Id::from_bytes_no_verify(self.0[ID_RANGE].try_into().unwrap())
+        Id::from_bytes(self.0[ID_RANGE].try_into().unwrap()).unwrap()
     }
 
     /// Address
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
     pub fn address(&self) -> Address {
-        Address::from_bytes_no_verify(self.0[ADDRESS_RANGE].try_into().unwrap())
+        Address::from_bytes(self.0[ADDR_RANGE].try_into().unwrap()).unwrap()
     }
 
     /// Signing `PublicKey`
@@ -292,21 +285,23 @@ impl Record {
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
     pub fn author_public_key(&self) -> PublicKey {
-        PublicKey::from_bytes(self.0[AUTHOR_KEY_RANGE].try_into().unwrap()).unwrap()
+        PublicKey::from_bytes(self.0[ADDR_AUTHOR_KEY_RANGE].try_into().unwrap()).unwrap()
     }
 
     /// Kind
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
     pub fn kind(&self) -> Kind {
-        Kind(u16::from_le_bytes(self.0[KIND_RANGE].try_into().unwrap()))
+        Kind(u16::from_le_bytes(
+            self.0[ADDR_KIND_RANGE].try_into().unwrap(),
+        ))
     }
 
     /// Nonce
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
     pub fn nonce(&self) -> &[u8; 8] {
-        self.0[NONCE_RANGE].try_into().unwrap()
+        self.0[ADDR_NONCE_RANGE].try_into().unwrap()
     }
 
     /// Flags
@@ -314,13 +309,6 @@ impl Record {
     #[must_use]
     pub fn flags(&self) -> RecordFlags {
         RecordFlags::from_bits_retain(u16::from_le_bytes(self.0[FLAGS_RANGE].try_into().unwrap()))
-    }
-
-    /// App Flags
-    #[allow(clippy::missing_panics_doc)]
-    #[must_use]
-    pub fn app_flags(&self) -> u16 {
-        u16::from_le_bytes(self.0[APPFLAGS_RANGE].try_into().unwrap())
     }
 
     /// Timestamp
@@ -387,20 +375,18 @@ impl Record {
 const SIG_RANGE: Range<usize> = 0..64;
 
 const ID_RANGE: Range<usize> = 64..112;
-const BE_REV_TIMESTAMP_RANGE: Range<usize> = 64..70;
-// const ZERO_RANGE: Range<usize> = 70..72;
-const HASH_RANGE: Range<usize> = 72..112;
+const ID_TIMESTAMP_RANGE: Range<usize> = 64..72;
+const ID_HASH_RANGE: Range<usize> = 72..112;
 
 const SIGNING_KEY_RANGE: Range<usize> = 112..144;
 
-const ADDRESS_RANGE: Range<usize> = 144..192;
-const NONCE_RANGE: Range<usize> = 144..158;
-const KIND_RANGE: Range<usize> = 158..160;
-const AUTHOR_KEY_RANGE: Range<usize> = 160..192;
+const ADDR_RANGE: Range<usize> = 144..192;
+const ADDR_NONCE_RANGE: Range<usize> = 144..158;
+const ADDR_KIND_RANGE: Range<usize> = 158..160;
+const ADDR_AUTHOR_KEY_RANGE: Range<usize> = 160..192;
 
-const FLAGS_RANGE: Range<usize> = 192..194;
-const TIMESTAMP_RANGE: Range<usize> = 194..200;
-const APPFLAGS_RANGE: Range<usize> = 200..202;
+const TIMESTAMP_RANGE: Range<usize> = 192..200;
+const FLAGS_RANGE: Range<usize> = 200..202;
 const LEN_T_RANGE: Range<usize> = 202..204;
 const LEN_P_RANGE: Range<usize> = 204..208;
 
@@ -419,7 +405,7 @@ impl std::fmt::Display for Record {
         )?;
         writeln!(f, "  timestamp: {}", self.timestamp())?;
         writeln!(f, "  kind: {}", self.kind())?;
-        writeln!(f, "  flags: {} {}", self.flags(), self.app_flags())?;
+        writeln!(f, "  flags: {}", self.flags())?;
         writeln!(f, "  tags (zbase32): {}", z32::encode(self.tags_bytes()))?;
         if self.flags().contains(RecordFlags::PRINTABLE) {
             writeln!(
@@ -497,7 +483,6 @@ impl OwnedRecord {
             address,
             parts.timestamp,
             parts.flags,
-            parts.app_flags,
             parts.tags_bytes,
             parts.payload,
         )
@@ -516,7 +501,6 @@ impl OwnedRecord {
         address: Address,
         timestamp: Timestamp,
         flags: RecordFlags,
-        app_flags: u16,
         tags_bytes: &[u8],
         payload: &[u8],
     ) -> Result<OwnedRecord, Error> {
@@ -536,7 +520,6 @@ impl OwnedRecord {
             address,
             timestamp,
             flags,
-            app_flags,
             tags_bytes,
             payload,
         )?;
@@ -590,9 +573,6 @@ pub struct RecordParts<'a> {
 
     /// The flags
     pub flags: RecordFlags,
-
-    /// Application flags
-    pub app_flags: u16,
 
     /// The tags
     pub tags_bytes: &'a [u8],
@@ -700,7 +680,6 @@ mod test {
                 deterministic_key: None,
                 timestamp: Timestamp::now().unwrap(),
                 flags: RecordFlags::empty(),
-                app_flags: 0,
                 tags_bytes: b"",
                 payload: b"hello world",
             },

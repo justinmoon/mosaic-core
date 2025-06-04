@@ -28,12 +28,9 @@ impl Address {
         Ok(Address(bytes.to_owned()))
     }
 
-    pub(crate) fn from_bytes_no_verify(bytes: &[u8; 48]) -> Address {
-        Address(bytes.to_owned())
-    }
-
-    pub(crate) fn from_owned_bytes_no_verify(bytes: [u8; 48]) -> Address {
-        Address(bytes)
+    pub(crate) fn from_owned_bytes(bytes: [u8; 48]) -> Result<Address, Error> {
+        Self::verify(&bytes)?;
+        Ok(Address(bytes))
     }
 
     /// Create a new Address with a random nonce
@@ -55,7 +52,6 @@ impl Address {
         let mut hasher = blake3::Hasher::new();
         let _ = hasher.update(key);
         hasher.finalize_xof().fill(&mut truehash[..]);
-
         Self::from_parts(author_public_key, kind, truehash[0..14].try_into().unwrap())
     }
 
@@ -116,6 +112,10 @@ impl Address {
     }
 
     pub(crate) fn verify(bytes: &[u8; 48]) -> Result<(), Error> {
+        if bytes[0] & (1 << 7) == 0 {
+            return Err(InnerError::InvalidAddressBytes.into());
+        }
+
         // Verify the public key
         let _ = PublicKey::from_bytes(bytes[16..48].try_into().unwrap())?;
 

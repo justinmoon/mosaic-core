@@ -16,7 +16,6 @@ fn main() {
             deterministic_key: None,
             timestamp: Timestamp::now().unwrap(),
             flags: RecordFlags::PRINTABLE,
-            app_flags: 0,
             tags_bytes: b"",
             payload: b"Hello World!",
         },

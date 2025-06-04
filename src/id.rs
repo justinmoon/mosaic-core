@@ -3,6 +3,9 @@ use crate::{Error, InnerError, Reference, Timestamp};
 /// An Id uniquely identifies a record.
 ///
 /// Ids sort in time order, and contain a timestamp and a hash prefix
+//
+// SAFETY: It must be impossible to create an Id that starts with a 1 bit
+//         (which is invalid for the leading timestamp)
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Id([u8; 48]);
 
@@ -19,8 +22,19 @@ impl Id {
     ///
     /// Will return `Err` if the input is not valid.
     pub fn from_bytes(bytes: &[u8; 48]) -> Result<Id, Error> {
-        Self::verify(bytes)?;
-        Ok(Id(bytes.to_owned()))
+        if bytes[0] & (1 << 7) != 0 {
+            Err(InnerError::InvalidIdBytes.into())
+        } else {
+            Ok(Id(bytes.to_owned()))
+        }
+    }
+
+    pub(crate) fn from_owned_bytes(bytes: [u8; 48]) -> Result<Id, Error> {
+        if bytes[0] & (1 << 7) != 0 {
+            Err(InnerError::InvalidIdBytes.into())
+        } else {
+            Ok(Id(bytes))
+        }
     }
 
     /// Create an ID from a hash and a `Timestamp`
@@ -28,16 +42,8 @@ impl Id {
     pub fn from_parts(hash_prefix: &[u8; 40], timestamp: Timestamp) -> Id {
         let mut buffer: [u8; 48] = [0; 48];
         buffer[8..48].copy_from_slice(&hash_prefix[..40]);
-        buffer[0..6].copy_from_slice(timestamp.be_reverse_bytes().as_slice());
+        buffer[0..8].copy_from_slice(timestamp.to_bytes().as_slice());
         Id(buffer)
-    }
-
-    pub(crate) fn from_bytes_no_verify(bytes: &[u8; 48]) -> Id {
-        Id(bytes.to_owned())
-    }
-
-    pub(crate) fn from_owned_bytes_no_verify(bytes: [u8; 48]) -> Id {
-        Id(bytes)
     }
 
     /// Convert an `Id` into a human printable `moref0` form.
@@ -60,15 +66,15 @@ impl Id {
         let bytes: [u8; 48] = bytes
             .try_into()
             .map_err(|_| InnerError::ReferenceLength.into_err())?;
-        Self::verify(&bytes)?;
-        Ok(Id(bytes))
+        Id::from_owned_bytes(bytes)
     }
 
     /// Extract timestamp from the Id
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
     pub fn timestamp(&self) -> Timestamp {
-        Timestamp::from_be_reverse_bytes(&self.0[0..6].try_into().unwrap()).unwrap()
+        // We can unwrap because Id is guaranteed to have a valid timestamp
+        Timestamp::from_bytes(self.0[0..8].try_into().unwrap()).unwrap()
     }
 
     /// Extract the hash prefix from the Id
@@ -76,18 +82,6 @@ impl Id {
     #[must_use]
     pub fn hash_prefix(&self) -> &[u8; 40] {
         self.0[8..48].try_into().unwrap()
-    }
-
-    pub(crate) fn verify(bytes: &[u8; 48]) -> Result<(), Error> {
-        // Verify zeros
-        if bytes[6] != 0 || bytes[7] != 0 {
-            return Err(InnerError::IdZerosAreNotZero.into());
-        }
-
-        // Verify the timestamp
-        let _ = Timestamp::from_be_reverse_bytes(&bytes[0..6].try_into().unwrap())?;
-
-        Ok(())
     }
 
     /// Convert into a `Reference`
@@ -116,10 +110,18 @@ mod test {
 
     #[test]
     fn test_id() {
+        /*
+        use rand_core::{OsRng, RngCore};
+        let mut hash_prefix: [u8; 40] = [0; 40];
+        OsRng.fill_bytes(&mut hash_prefix);
+        let id = Id::from_parts(&hash_prefix, Timestamp::now().unwrap());
+        println!("NEW ID = {}", id);
+         */
+
         let printable =
-            "moref0x3wqbwkqbeyyb6319cjdx4rtwgenpf7bzwn8g49y9n8qt8d93x199g5h6hzyjupt7jnycc6zrq73n";
+            "moref0dbn9gp16bwuebm9hc6y1w6amfkxjze7ymkxkopdc8cwakurdwaeasm8kh3ojy3jsjn3ymgkzijyka";
         let id = Id::from_printable(printable).unwrap();
         let timestamp = id.timestamp();
-        assert_eq!(format!("{timestamp}"), "1748574843381");
+        assert_eq!(format!("{timestamp}"), "1749071445135009408");
     }
 }

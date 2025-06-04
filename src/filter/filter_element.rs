@@ -198,7 +198,7 @@ impl FilterElement {
                 let ts_bytes = record.timestamp().to_bytes();
                 for w in 0..wordlen - 1 {
                     let i = 8 + w * 8;
-                    if &self.0[i + 2..i + 8] == ts_bytes.as_slice() {
+                    if &self.0[i..i + 8] == ts_bytes.as_slice() {
                         return Ok(true);
                     }
                 }
@@ -220,11 +220,11 @@ impl FilterElement {
                 Ok(false)
             }
             FilterElementType::SINCE => {
-                let filter_ts = Timestamp::from_bytes(&self.0[10..16].try_into().unwrap())?;
+                let filter_ts = Timestamp::from_bytes(self.0[8..16].try_into().unwrap())?;
                 Ok(record.timestamp() >= filter_ts)
             }
             FilterElementType::UNTIL => {
-                let filter_ts = Timestamp::from_bytes(&self.0[10..16].try_into().unwrap())?;
+                let filter_ts = Timestamp::from_bytes(self.0[8..16].try_into().unwrap())?;
                 Ok(record.timestamp() < filter_ts)
             }
             FilterElementType::RECEIVED_SINCE | FilterElementType::RECEIVED_UNTIL => {
@@ -320,7 +320,7 @@ impl FilterElement {
     pub fn since(&self) -> Result<Option<Timestamp>, Error> {
         match self.get_type() {
             FilterElementType::SINCE | FilterElementType::RECEIVED_SINCE => Ok(Some(
-                Timestamp::from_bytes(self.0[10..16].try_into().unwrap())?,
+                Timestamp::from_bytes(self.0[8..16].try_into().unwrap())?,
             )),
             _ => Ok(None),
         }
@@ -335,7 +335,7 @@ impl FilterElement {
     pub fn until(&self) -> Result<Option<Timestamp>, Error> {
         match self.get_type() {
             FilterElementType::UNTIL | FilterElementType::RECEIVED_UNTIL => Ok(Some(
-                Timestamp::from_bytes(self.0[10..16].try_into().unwrap())?,
+                Timestamp::from_bytes(self.0[8..16].try_into().unwrap())?,
             )),
             _ => Ok(None),
         }
@@ -420,9 +420,7 @@ impl Iterator for FeTimestampsIter<'_> {
         if bytelen < self.offset + 8 {
             None
         } else {
-            let bytes = self.fe.0[self.offset + 2..self.offset + 8]
-                .try_into()
-                .unwrap();
+            let bytes = self.fe.0[self.offset..self.offset + 8].try_into().unwrap();
             match Timestamp::from_bytes(bytes) {
                 Ok(ts) => {
                     self.offset += 8;
@@ -588,7 +586,7 @@ impl OwnedFilterElement {
             bytes[1] = numcells as u8;
         }
         for (i, stamp) in timestamps.iter().enumerate() {
-            bytes[8 + i * 8 + 2..8 + i * 8 + 8].copy_from_slice(stamp.to_bytes().as_slice());
+            bytes[8 + i * 8..8 + i * 8 + 8].copy_from_slice(stamp.to_bytes().as_slice());
         }
         Ok(OwnedFilterElement(bytes))
     }
@@ -627,7 +625,7 @@ impl OwnedFilterElement {
         let mut bytes: Vec<u8> = vec![0_u8; 16];
         bytes[0] = FilterElementType::SINCE.0;
         bytes[1] = 2;
-        bytes[10..16].copy_from_slice(t.to_bytes().as_slice());
+        bytes[8..16].copy_from_slice(t.to_bytes().as_slice());
         OwnedFilterElement(bytes)
     }
 
@@ -637,7 +635,7 @@ impl OwnedFilterElement {
         let mut bytes: Vec<u8> = vec![0_u8; 16];
         bytes[0] = FilterElementType::UNTIL.0;
         bytes[1] = 2;
-        bytes[10..16].copy_from_slice(t.to_bytes().as_slice());
+        bytes[8..16].copy_from_slice(t.to_bytes().as_slice());
         OwnedFilterElement(bytes)
     }
 
@@ -647,7 +645,7 @@ impl OwnedFilterElement {
         let mut bytes: Vec<u8> = vec![0_u8; 16];
         bytes[0] = FilterElementType::RECEIVED_SINCE.0;
         bytes[1] = 2;
-        bytes[10..16].copy_from_slice(t.to_bytes().as_slice());
+        bytes[8..16].copy_from_slice(t.to_bytes().as_slice());
         OwnedFilterElement(bytes)
     }
 
@@ -657,7 +655,7 @@ impl OwnedFilterElement {
         let mut bytes: Vec<u8> = vec![0_u8; 16];
         bytes[0] = FilterElementType::RECEIVED_UNTIL.0;
         bytes[1] = 2;
-        bytes[10..16].copy_from_slice(t.to_bytes().as_slice());
+        bytes[8..16].copy_from_slice(t.to_bytes().as_slice());
         OwnedFilterElement(bytes)
     }
 
@@ -666,7 +664,6 @@ impl OwnedFilterElement {
     /// # Errors
     ///
     /// Returns an Err if more then 63 `Id`s are passed in
-    #[allow(clippy::cast_possible_truncation)]
     pub fn new_exclude(ids: &[Id]) -> Result<OwnedFilterElement, Error> {
         let num = ids.len();
         let numcells = 1 + num * 4;
@@ -781,7 +778,6 @@ mod test {
                 deterministic_key: None,
                 timestamp: Timestamp::now().unwrap(),
                 flags: RecordFlags::PRINTABLE,
-                app_flags: 0,
                 tags_bytes: b"",
                 payload: b"Hello World!",
             },
@@ -797,7 +793,6 @@ mod test {
                 deterministic_key: None,
                 timestamp: Timestamp::now().unwrap(),
                 flags: RecordFlags::PRINTABLE,
-                app_flags: 0,
                 tags_bytes: b"",
                 payload: b"Hello World!",
             },
@@ -864,7 +859,7 @@ mod test {
         assert_eq!(iter.next(), None);
 
         // timestamps
-        let ts1 = Timestamp::from_millis(100000).unwrap();
+        let ts1 = Timestamp::from_nanoseconds(1_710_000_000_000_000_000).unwrap();
         let ts2 = Timestamp::now().unwrap();
         let fe = OwnedFilterElement::new_timestamps(&[ts1, ts2]).unwrap();
         assert!(fe.keys().is_none());

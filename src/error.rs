@@ -55,11 +55,14 @@ pub enum InnerError {
     /// General error
     General(String),
 
-    /// ID zeroes are not zero
-    IdZerosAreNotZero,
+    /// Invalid Address bytes
+    InvalidAddressBytes,
 
     /// Invalid filter element for function
     InvalidFilterElementForFunction,
+
+    /// Invalid ID bytes
+    InvalidIdBytes,
 
     /// Invalid length
     InvalidLength,
@@ -84,6 +87,12 @@ pub enum InnerError {
 
     /// Missing scheme
     MissingScheme,
+
+    /// Reference is not an Address
+    NotAnAddress,
+
+    /// Reference is not an ID
+    NotAnId,
 
     /// Record section length mismatch
     RecordSectionLengthMismatch,
@@ -144,11 +153,12 @@ impl std::fmt::Display for InnerError {
             InnerError::HashMismatch => write!(f, "Hash mismatch"),
             InnerError::KeyLength => write!(f, "Key data length is not 32 bytes"),
             InnerError::General(s) => write!(f, "General Error: {s}"),
-            InnerError::IdZerosAreNotZero => write!(f, "ID zeroes are not zero"),
+            InnerError::InvalidAddressBytes => write!(f, "Invalid Address bytes"),
             InnerError::InvalidFilterElementForFunction => write!(
                 f,
                 "Invalid filter element for function (received dates not available in Record)"
             ),
+            InnerError::InvalidIdBytes => write!(f, "Invalid ID bytes"),
             InnerError::InvalidLength => write!(f, "Invalid length"),
             InnerError::InvalidPrintable => write!(f, "Printable data is invalid"),
             InnerError::InvalidServerBootstrapString => write!(f, "Invalid ServerBootstrap String"),
@@ -157,6 +167,8 @@ impl std::fmt::Display for InnerError {
             InnerError::InvalidUri(e) => write!(f, "Invalid URI: {e}"),
             InnerError::InvalidUriParts(e) => write!(f, "Invalid URI parts: {e}"),
             InnerError::MissingScheme => write!(f, "Missing scheme"),
+            InnerError::NotAnAddress => write!(f, "Reference is not an address"),
+            InnerError::NotAnId => write!(f, "Reference is not an ID"),
             InnerError::RecordSectionLengthMismatch => write!(f, "Record section length mismatch"),
             InnerError::RecordTooLong => write!(f, "Record too long"),
             InnerError::RecordTooShort => write!(f, "Record too short"),
