@@ -105,7 +105,6 @@ impl UserBootstrap {
     /// # Errors
     ///
     /// Returns an `Err` if the string does not match the specification
-    #[allow(clippy::string_slice)]
     pub fn from_dht_string_and_seq(s: &str, seq: i64) -> Result<UserBootstrap, Error> {
         if !s.starts_with("U\n") || s.len() < 4 {
             return Err(InnerError::InvalidUserBootstrapString.into());
@@ -117,8 +116,10 @@ impl UserBootstrap {
         }
 
         let mut output: Vec<(ServerUsage, PublicKey)> = vec![];
+        #[allow(clippy::string_slice)]
         for part in s[2..].split('\n') {
             let server_usage = ServerUsage::from_printable_byte(part.as_bytes()[0]);
+            #[allow(clippy::string_slice)]
             let public_key = PublicKey::from_printable(&part[2..])?;
             output.push((server_usage, public_key));
         }

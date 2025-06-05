@@ -220,7 +220,6 @@ impl Tag {
     /// # Errors
     ///
     /// Errors if the buffer isn't long enough.
-    #[allow(clippy::cast_possible_truncation)]
     pub fn write_notify_public_key<'a>(
         buffer: &'a mut [u8],
         public_key: &PublicKey,
@@ -230,7 +229,10 @@ impl Tag {
             return Err(InnerError::EndOfOutput.into());
         }
         buffer[0..2].copy_from_slice(TagType::NOTIFY_PUBLIC_KEY.0.to_le_bytes().as_slice());
-        buffer[2] = (LEN - 3) as u8;
+        #[allow(clippy::cast_possible_truncation)]
+        {
+            buffer[2] = (LEN - 3) as u8;
+        }
         buffer[8..LEN].copy_from_slice(public_key.as_bytes().as_slice());
         Ok(Tag::from_inner(&buffer[..LEN]))
     }
@@ -240,7 +242,6 @@ impl Tag {
     /// # Errors
     ///
     /// Errors if the buffer isn't long enough.
-    #[allow(clippy::cast_possible_truncation)]
     pub fn write_reply<'a>(
         buffer: &'a mut [u8],
         refer: &Reference,
@@ -251,7 +252,10 @@ impl Tag {
             return Err(InnerError::EndOfOutput.into());
         }
         buffer[0..2].copy_from_slice(TagType::REPLY.0.to_le_bytes().as_slice());
-        buffer[2] = (LEN - 3) as u8;
+        #[allow(clippy::cast_possible_truncation)]
+        {
+            buffer[2] = (LEN - 3) as u8;
+        }
         buffer[6..8].copy_from_slice(kind.0.to_le_bytes().as_slice());
         buffer[8..LEN].copy_from_slice(refer.as_bytes().as_slice());
         Ok(Tag::from_inner(&buffer[..LEN]))
@@ -262,7 +266,6 @@ impl Tag {
     /// # Errors
     ///
     /// Errors if the buffer isn't long enough.
-    #[allow(clippy::cast_possible_truncation)]
     pub fn write_root<'a>(
         buffer: &'a mut [u8],
         refer: &Reference,
@@ -273,7 +276,10 @@ impl Tag {
             return Err(InnerError::EndOfOutput.into());
         }
         buffer[0..2].copy_from_slice(TagType::ROOT.0.to_le_bytes().as_slice());
-        buffer[2] = (LEN - 3) as u8;
+        #[allow(clippy::cast_possible_truncation)]
+        {
+            buffer[2] = (LEN - 3) as u8;
+        }
         buffer[6..8].copy_from_slice(kind.0.to_le_bytes().as_slice());
         buffer[8..LEN].copy_from_slice(refer.as_bytes().as_slice());
         Ok(Tag::from_inner(&buffer[..LEN]))
@@ -284,14 +290,16 @@ impl Tag {
     /// # Errors
     ///
     /// Errors if the buffer isn't long enough.
-    #[allow(clippy::cast_possible_truncation)]
     pub fn write_nostr_sister<'a>(buffer: &'a mut [u8], id: &[u8; 32]) -> Result<&'a Tag, Error> {
         const LEN: usize = 40;
         if buffer.len() < LEN {
             return Err(InnerError::EndOfOutput.into());
         }
         buffer[0..2].copy_from_slice(TagType::NOSTR_SISTER.0.to_le_bytes().as_slice());
-        buffer[2] = (LEN - 3) as u8;
+        #[allow(clippy::cast_possible_truncation)]
+        {
+            buffer[2] = (LEN - 3) as u8;
+        }
         buffer[8..LEN].copy_from_slice(id.as_slice());
         Ok(Tag::from_inner(&buffer[..LEN]))
     }
@@ -301,7 +309,6 @@ impl Tag {
     /// # Errors
     ///
     /// Errors if the buffer isn't long enough.
-    #[allow(clippy::cast_possible_truncation)]
     pub fn write_subkey<'a>(
         buffer: &'a mut [u8],
         public_key: &PublicKey,
@@ -311,7 +318,10 @@ impl Tag {
             return Err(InnerError::EndOfOutput.into());
         }
         buffer[0..2].copy_from_slice(TagType::SUBKEY.0.to_le_bytes().as_slice());
-        buffer[2] = (LEN - 3) as u8;
+        #[allow(clippy::cast_possible_truncation)]
+        {
+            buffer[2] = (LEN - 3) as u8;
+        }
         buffer[8..LEN].copy_from_slice(public_key.as_bytes().as_slice());
         Ok(Tag::from_inner(&buffer[..LEN]))
     }
@@ -321,7 +331,6 @@ impl Tag {
     /// # Errors
     ///
     /// Errors if the buffer isn't long enough.
-    #[allow(clippy::cast_possible_truncation)]
     pub fn write_content_segment_user_mention<'a>(
         buffer: &'a mut [u8],
         public_key: &PublicKey,
@@ -337,7 +346,10 @@ impl Tag {
                 .to_le_bytes()
                 .as_slice(),
         );
-        buffer[2] = (LEN - 3) as u8;
+        #[allow(clippy::cast_possible_truncation)]
+        {
+            buffer[2] = (LEN - 3) as u8;
+        }
         buffer[4..8].copy_from_slice(offset.to_le_bytes().as_slice());
         buffer[8..LEN].copy_from_slice(public_key.as_bytes().as_slice());
         Ok(Tag::from_inner(&buffer[..LEN]))
@@ -348,7 +360,6 @@ impl Tag {
     /// # Errors
     ///
     /// Errors if the buffer isn't long enough.
-    #[allow(clippy::cast_possible_truncation)]
     pub fn write_content_segment_server_mention<'a>(
         buffer: &'a mut [u8],
         public_key: &PublicKey,
@@ -364,7 +375,10 @@ impl Tag {
                 .to_le_bytes()
                 .as_slice(),
         );
-        buffer[2] = (LEN - 3) as u8;
+        #[allow(clippy::cast_possible_truncation)]
+        {
+            buffer[2] = (LEN - 3) as u8;
+        }
         buffer[4..8].copy_from_slice(offset.to_le_bytes().as_slice());
         buffer[8..LEN].copy_from_slice(public_key.as_bytes().as_slice());
         Ok(Tag::from_inner(&buffer[..LEN]))
@@ -375,7 +389,6 @@ impl Tag {
     /// # Errors
     ///
     /// Errors if the buffer isn't long enough.
-    #[allow(clippy::cast_possible_truncation)]
     pub fn write_content_segment_quote<'a>(
         buffer: &'a mut [u8],
         refer: &Reference,
@@ -387,7 +400,10 @@ impl Tag {
             return Err(InnerError::EndOfOutput.into());
         }
         buffer[0..2].copy_from_slice(TagType::CONTENT_SEGMENT_QUOTE.0.to_le_bytes().as_slice());
-        buffer[2] = (LEN - 3) as u8;
+        #[allow(clippy::cast_possible_truncation)]
+        {
+            buffer[2] = (LEN - 3) as u8;
+        }
         buffer[4..8].copy_from_slice(offset.to_le_bytes().as_slice());
         buffer[14..16].copy_from_slice(kind.0.to_le_bytes().as_slice());
         buffer[16..LEN].copy_from_slice(refer.as_bytes().as_slice());
@@ -399,7 +415,6 @@ impl Tag {
     /// # Errors
     ///
     /// Errors if the buffer isn't long enough.
-    #[allow(clippy::cast_possible_truncation)]
     pub fn write_content_segment_url<'a>(
         buffer: &'a mut [u8],
         url: &str,
@@ -410,7 +425,10 @@ impl Tag {
             return Err(InnerError::EndOfOutput.into());
         }
         buffer[0..2].copy_from_slice(TagType::CONTENT_SEGMENT_URL.0.to_le_bytes().as_slice());
-        buffer[2] = (len - 3) as u8;
+        #[allow(clippy::cast_possible_truncation)]
+        {
+            buffer[2] = (len - 3) as u8;
+        }
         buffer[4..8].copy_from_slice(offset.to_le_bytes().as_slice());
         buffer[8..len].copy_from_slice(url.as_bytes());
         Ok(Tag::from_inner(&buffer[..len]))
@@ -421,7 +439,6 @@ impl Tag {
     /// # Errors
     ///
     /// Errors if the buffer isn't long enough.
-    #[allow(clippy::cast_possible_truncation)]
     pub fn write_content_segment_image<'a>(
         buffer: &'a mut [u8],
         url: &str,
@@ -432,7 +449,10 @@ impl Tag {
             return Err(InnerError::EndOfOutput.into());
         }
         buffer[0..2].copy_from_slice(TagType::CONTENT_SEGMENT_IMAGE.0.to_le_bytes().as_slice());
-        buffer[2] = (len - 3) as u8;
+        #[allow(clippy::cast_possible_truncation)]
+        {
+            buffer[2] = (len - 3) as u8;
+        }
         buffer[4..8].copy_from_slice(offset.to_le_bytes().as_slice());
         buffer[8..len].copy_from_slice(url.as_bytes());
         Ok(Tag::from_inner(&buffer[..len]))
@@ -443,7 +463,6 @@ impl Tag {
     /// # Errors
     ///
     /// Errors if the buffer isn't long enough.
-    #[allow(clippy::cast_possible_truncation)]
     pub fn write_content_segment_video<'a>(
         buffer: &'a mut [u8],
         url: &str,
@@ -454,7 +473,10 @@ impl Tag {
             return Err(InnerError::EndOfOutput.into());
         }
         buffer[0..2].copy_from_slice(TagType::CONTENT_SEGMENT_VIDEO.0.to_le_bytes().as_slice());
-        buffer[2] = (len - 3) as u8;
+        #[allow(clippy::cast_possible_truncation)]
+        {
+            buffer[2] = (len - 3) as u8;
+        }
         buffer[4..8].copy_from_slice(offset.to_le_bytes().as_slice());
         buffer[8..len].copy_from_slice(url.as_bytes());
         Ok(Tag::from_inner(&buffer[..len]))

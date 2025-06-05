@@ -64,8 +64,8 @@ impl std::fmt::Display for RecordFlags {
 
 /// A signature scheme used to sign a `Record`
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[allow(clippy::doc_markdown)]
 pub enum SignatureScheme {
+    #[allow(clippy::doc_markdown)]
     /// EdDSA ed25519
     Ed25519 = 0,
 

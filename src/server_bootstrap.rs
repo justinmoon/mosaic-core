@@ -92,7 +92,6 @@ impl ServerBootstrap {
     /// # Errors
     ///
     /// Returns an `Err` if the string does not match the specification.
-    #[allow(clippy::string_slice)]
     pub fn from_dht_string_and_seq(s: &str, seq: i64) -> Result<ServerBootstrap, Error> {
         if !s.starts_with("S\n") || s.len() < 4 {
             return Err(InnerError::InvalidServerBootstrapString.into());
@@ -104,6 +103,7 @@ impl ServerBootstrap {
         }
 
         let mut output: Vec<Uri> = vec![];
+        #[allow(clippy::string_slice)]
         for part in s[2..].split('\n') {
             let uri = part.parse::<Uri>()?;
             let uri = crate::uri::clean_uri(uri)?;

@@ -501,7 +501,6 @@ impl OwnedFilterElement {
     /// # Errors
     ///
     /// Returns an Err if you pass in more than 63 keys.
-    #[allow(clippy::cast_possible_truncation)]
     pub fn new_author_keys(keys: &[PublicKey]) -> Result<OwnedFilterElement, Error> {
         let numkeys = keys.len();
         let numcells = 1 + numkeys * 4;
@@ -511,7 +510,10 @@ impl OwnedFilterElement {
 
         let mut bytes: Vec<u8> = vec![0_u8; numcells * 8];
         bytes[0] = FilterElementType::AUTHOR_KEYS.0;
-        bytes[1] = numcells as u8;
+        #[allow(clippy::cast_possible_truncation)]
+        {
+            bytes[1] = numcells as u8;
+        }
         for (i, key) in keys.iter().enumerate() {
             bytes[8 + i * 32..8 + i * 32 + 32].copy_from_slice(key.as_bytes().as_slice());
         }
@@ -523,7 +525,6 @@ impl OwnedFilterElement {
     /// # Errors
     ///
     /// Returns an Err if you pass in more than 63 keys.
-    #[allow(clippy::cast_possible_truncation)]
     pub fn new_signing_keys(keys: &[PublicKey]) -> Result<OwnedFilterElement, Error> {
         let numkeys = keys.len();
         let numcells = 1 + numkeys * 4;
@@ -533,7 +534,10 @@ impl OwnedFilterElement {
 
         let mut bytes: Vec<u8> = vec![0_u8; numcells * 8];
         bytes[0] = FilterElementType::SIGNING_KEYS.0;
-        bytes[1] = numcells as u8;
+        #[allow(clippy::cast_possible_truncation)]
+        {
+            bytes[1] = numcells as u8;
+        }
         for (i, key) in keys.iter().enumerate() {
             bytes[8 + i * 32..8 + i * 32 + 32].copy_from_slice(key.as_bytes().as_slice());
         }
@@ -545,7 +549,6 @@ impl OwnedFilterElement {
     /// # Errors
     ///
     /// Returns an Err if you pass in more than 255 keys.
-    #[allow(clippy::cast_possible_truncation)]
     pub fn new_kinds(kinds: &[Kind]) -> Result<OwnedFilterElement, Error> {
         let numkinds = kinds.len();
         if numkinds > 255 {
@@ -555,8 +558,11 @@ impl OwnedFilterElement {
 
         let mut bytes: Vec<u8> = vec![0_u8; numcells * 8];
         bytes[0] = FilterElementType::KINDS.0;
-        bytes[1] = numcells as u8;
-        bytes[7] = numkinds as u8;
+        #[allow(clippy::cast_possible_truncation)]
+        {
+            bytes[1] = numcells as u8;
+            bytes[7] = numkinds as u8;
+        }
         for (i, kind) in kinds.iter().enumerate() {
             bytes[8 + i * 2..8 + i * 2 + 2].copy_from_slice(kind.to_bytes().as_slice());
         }
@@ -568,7 +574,6 @@ impl OwnedFilterElement {
     /// # Errors
     ///
     /// Returns an Err if you pass in more than 254 timestamps.
-    #[allow(clippy::cast_possible_truncation)]
     pub fn new_timestamps(timestamps: &[Timestamp]) -> Result<OwnedFilterElement, Error> {
         let numstamps = timestamps.len();
         if numstamps > 254 {
@@ -578,7 +583,10 @@ impl OwnedFilterElement {
 
         let mut bytes: Vec<u8> = vec![0_u8; numcells * 8];
         bytes[0] = FilterElementType::TIMESTAMPS.0;
-        bytes[1] = numcells as u8;
+        #[allow(clippy::cast_possible_truncation)]
+        {
+            bytes[1] = numcells as u8;
+        }
         for (i, stamp) in timestamps.iter().enumerate() {
             bytes[8 + i * 8 + 2..8 + i * 8 + 8].copy_from_slice(stamp.to_bytes().as_slice());
         }
@@ -590,7 +598,6 @@ impl OwnedFilterElement {
     /// # Errors
     ///
     /// Returns an Err if the sum length of the tags exceeds 254 * 8.
-    #[allow(clippy::cast_possible_truncation)]
     pub fn new_included_tags<T: AsRef<Tag>>(tags: &[T]) -> Result<OwnedFilterElement, Error> {
         let datalen: usize = tags.iter().map(|t| t.as_ref().as_bytes().len()).sum();
         if datalen > 254 * 8 {
@@ -600,7 +607,10 @@ impl OwnedFilterElement {
 
         let mut bytes: Vec<u8> = vec![0_u8; 8 + datalen];
         bytes[0] = FilterElementType::INCLUDED_TAGS.0;
-        bytes[1] = numcells as u8;
+        #[allow(clippy::cast_possible_truncation)]
+        {
+            bytes[1] = numcells as u8;
+        }
         let mut i = 8;
         for t in tags {
             let b = t.as_ref().as_bytes();
@@ -666,7 +676,10 @@ impl OwnedFilterElement {
 
         let mut bytes: Vec<u8> = vec![0_u8; numcells * 8];
         bytes[0] = FilterElementType::EXCLUDE.0;
-        bytes[1] = numcells as u8;
+        #[allow(clippy::cast_possible_truncation)]
+        {
+            bytes[1] = numcells as u8;
+        }
         for (i, id) in ids.iter().enumerate() {
             bytes[8 + i * 32..8 + i * 32 + 32].copy_from_slice(&id.as_bytes().as_slice()[..32]);
         }
@@ -678,7 +691,6 @@ impl OwnedFilterElement {
     /// # Errors
     ///
     /// Returns an Err if the sum length of the tags exceeds 254 * 8.
-    #[allow(clippy::cast_possible_truncation)]
     pub fn new_excluded_tags<T: AsRef<Tag>>(tags: &[T]) -> Result<OwnedFilterElement, Error> {
         let datalen: usize = tags.iter().map(|t| t.as_ref().as_bytes().len()).sum();
         if datalen > 254 * 8 {
@@ -688,7 +700,10 @@ impl OwnedFilterElement {
 
         let mut bytes: Vec<u8> = vec![0_u8; 8 + datalen];
         bytes[0] = FilterElementType::EXCLUDED_TAGS.0;
-        bytes[1] = numcells as u8;
+        #[allow(clippy::cast_possible_truncation)]
+        {
+            bytes[1] = numcells as u8;
+        }
         let mut i = 8;
         for t in tags {
             let b = t.as_ref().as_bytes();
