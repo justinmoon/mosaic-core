@@ -1,5 +1,5 @@
 /// A record kind
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Kind(pub u16);
 
 impl Kind {
