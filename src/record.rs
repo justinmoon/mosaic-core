@@ -84,8 +84,10 @@ impl Record {
         signing_secret_key: &SecretKey,
         parts: &RecordParts,
     ) -> Result<&'a Record, Error> {
-        let address = match parts.deterministic_key {
-            Some(key) => Address::new_deterministic(signing_secret_key.public(), parts.kind, key),
+        let address = match parts.deterministic_nonce {
+            Some(nonce) => {
+                Address::new_deterministic(signing_secret_key.public(), parts.kind, nonce)
+            }
             None => Address::new_random(signing_secret_key.public(), parts.kind),
         };
 
@@ -443,6 +445,7 @@ impl Ord for Record {
 /// and owned.
 ///
 /// See also `Record` for the borrowed variant.
+///
 // INVARIANTS:
 //   at least 208 bytes long
 //   no more than 1_048_576 bytes long
@@ -467,13 +470,27 @@ impl OwnedRecord {
 
     /// Create a new `OwnedRecord` from component parts.
     ///
+    /// ```
+    /// let mut csprng = rand::rngs::OsRng;
+    /// let secret_key = SecretKey::generate(&mut csprng);
+    /// let mut parts = RecordParts {
+    ///     kind: Kind(1),
+    ///     deterministic_nonce: secret_key.public(),
+    ///     timestamp: Timestamp::now().unwrap(),
+    ///     flags: RecordFlags::empty(),
+    ///     tags_bytes: &[],
+    ///     payload: &[],
+    /// };
+    /// let record = OwnedRecord::new(&secret_key, &parts).unwrap();
+    /// ```
+    //
     /// # Errors
     ///
     /// Returns an `Err` if any data is too long, if reserved flags are set,
     /// or if signing fails.
     #[allow(clippy::missing_panics_doc)]
     pub fn new(signing_secret_key: &SecretKey, parts: &RecordParts) -> Result<OwnedRecord, Error> {
-        let address = match parts.deterministic_key {
+        let address = match parts.deterministic_nonce {
             Some(key) => Address::new_deterministic(signing_secret_key.public(), parts.kind, key),
             None => Address::new_random(signing_secret_key.public(), parts.kind),
         };
@@ -565,8 +582,10 @@ pub struct RecordParts<'a> {
     /// The kind of record
     pub kind: Kind,
 
-    /// Optionally a deterministic key for the Address
-    pub deterministic_key: Option<&'a [u8]>,
+    /// Optionally, a deterministic nonce for the Address. The first 14 bytes
+    /// provided will be used. If less are provided, the remainder will be
+    /// random.
+    pub deterministic_nonce: Option<&'a [u8]>,
 
     /// The time
     pub timestamp: Timestamp,
@@ -677,7 +696,7 @@ mod test {
             &signing_secret_key,
             &RecordParts {
                 kind: Kind::KEY_SCHEDULE,
-                deterministic_key: None,
+                deterministic_nonce: None,
                 timestamp: Timestamp::now().unwrap(),
                 flags: RecordFlags::empty(),
                 tags_bytes: b"",

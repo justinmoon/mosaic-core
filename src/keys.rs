@@ -118,6 +118,12 @@ impl SecretKey {
     }
 
     /// Generate a `SecretKey`
+    ///
+    /// For example:
+    /// ```
+    /// let mut csprng = rand::rngs::OsRng;
+    /// let secret_key = SecretKey::generate(&mut csprng);
+    /// ```
     pub fn generate<R: rand_core::CryptoRngCore + ?Sized>(csprng: &mut R) -> SecretKey {
         SecretKey(DalekSigningKey::generate(csprng).to_bytes())
     }

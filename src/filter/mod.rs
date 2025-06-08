@@ -146,6 +146,10 @@ pub struct OwnedFilter(Vec<u8>);
 
 impl OwnedFilter {
     /// Create a new `OwnedFilter` with the given `FilterElement`s
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Err` if any `FilterElement` length is not a multiple of 8.
     #[allow(clippy::missing_panics_doc)]
     #[allow(clippy::cast_possible_truncation)]
     pub fn new(elements: &[&FilterElement]) -> Result<OwnedFilter, Error> {
