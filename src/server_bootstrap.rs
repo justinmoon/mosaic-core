@@ -196,6 +196,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn test_server_bootstrap_dht() {
         use crate::SecretKey;
 

@@ -30,7 +30,7 @@ impl FilterElementType {
     /// [Since](https://stevefarroll.github.io/mosaic-spec/filter.html#since)
     pub const SINCE: FilterElementType = FilterElementType(0x80);
 
-    /// Matches all records with a timestamp less than the given value.
+    /// Matches all records with a timestamp less than or equal to the given value.
     /// [Until](https://stevefarroll.github.io/mosaic-spec/filter.html#until)
     pub const UNTIL: FilterElementType = FilterElementType(0x81);
 
@@ -38,7 +38,7 @@ impl FilterElementType {
     /// [ReceivedSince](https://stevefarroll.github.io/mosaic-spec/filter.html#received-since)
     pub const RECEIVED_SINCE: FilterElementType = FilterElementType(0x82);
 
-    /// Matches all records that were received before given value.
+    /// Matches all records that were received at or before given value.
     /// [ReceivedUntil](https://stevefarroll.github.io/mosaic-spec/filter.html#received-until)
     pub const RECEIVED_UNTIL: FilterElementType = FilterElementType(0x83);
 
@@ -225,7 +225,7 @@ impl FilterElement {
             }
             FilterElementType::UNTIL => {
                 let filter_ts = Timestamp::from_bytes(self.0[8..16].try_into().unwrap())?;
-                Ok(record.timestamp() < filter_ts)
+                Ok(record.timestamp() <= filter_ts)
             }
             FilterElementType::RECEIVED_SINCE | FilterElementType::RECEIVED_UNTIL => {
                 Err(InnerError::InvalidFilterElementForFunction.into())
@@ -775,7 +775,7 @@ mod test {
             &secret_key1,
             &RecordParts {
                 kind: Kind::MICROBLOG_ROOT,
-                deterministic_key: None,
+                deterministic_nonce: None,
                 timestamp: Timestamp::now().unwrap(),
                 flags: RecordFlags::PRINTABLE,
                 tags_bytes: b"",
@@ -790,7 +790,7 @@ mod test {
             &secret_key3,
             &RecordParts {
                 kind: Kind::CHAT_MESSAGE,
-                deterministic_key: None,
+                deterministic_nonce: None,
                 timestamp: Timestamp::now().unwrap(),
                 flags: RecordFlags::PRINTABLE,
                 tags_bytes: b"",

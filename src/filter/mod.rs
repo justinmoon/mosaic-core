@@ -220,7 +220,7 @@ mod test {
             &secret_key1,
             &RecordParts {
                 kind: Kind::MICROBLOG_ROOT,
-                deterministic_key: None,
+                deterministic_nonce: None,
                 timestamp: Timestamp::now().unwrap(),
                 flags: RecordFlags::PRINTABLE,
                 tags_bytes: b"",
@@ -235,7 +235,7 @@ mod test {
             &secret_key1,
             &RecordParts {
                 kind: Kind::CHAT_MESSAGE,
-                deterministic_key: None,
+                deterministic_nonce: None,
                 timestamp: Timestamp::now().unwrap(),
                 flags: RecordFlags::PRINTABLE,
                 tags_bytes: b"",

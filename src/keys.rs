@@ -121,6 +121,7 @@ impl SecretKey {
     ///
     /// For example:
     /// ```
+    /// # use mosaic_core::SecretKey;
     /// let mut csprng = rand::rngs::OsRng;
     /// let secret_key = SecretKey::generate(&mut csprng);
     /// ```

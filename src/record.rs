@@ -471,11 +471,12 @@ impl OwnedRecord {
     /// Create a new `OwnedRecord` from component parts.
     ///
     /// ```
+    /// # use mosaic_core::{Kind, OwnedRecord, RecordFlags, RecordParts, SecretKey, Timestamp};
     /// let mut csprng = rand::rngs::OsRng;
     /// let secret_key = SecretKey::generate(&mut csprng);
     /// let mut parts = RecordParts {
     ///     kind: Kind(1),
-    ///     deterministic_nonce: secret_key.public(),
+    ///     deterministic_nonce: None,
     ///     timestamp: Timestamp::now().unwrap(),
     ///     flags: RecordFlags::empty(),
     ///     tags_bytes: &[],
