@@ -435,8 +435,9 @@ impl PartialOrd for Record {
 
 impl Ord for Record {
     fn cmp(&self, other: &Self) -> Ordering {
-        // Records sort in reverse time order, so this is swapped
-        other.timestamp().cmp(&self.timestamp())
+        // Records sort in ID order, which is time-forward order since timestamps
+        // at the start of the ID are big-endian
+        self.id().cmp(&other.id())
     }
 }
 
@@ -542,6 +543,20 @@ impl OwnedRecord {
             payload,
         )?;
         Ok(OwnedRecord(buffer))
+    }
+}
+
+impl PartialOrd for OwnedRecord {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for OwnedRecord {
+    fn cmp(&self, other: &Self) -> Ordering {
+        // Records sort in ID order, which is time-forward order since timestamps
+        // at the start of the ID are big-endian
+        self.id().cmp(&other.id())
     }
 }
 
@@ -713,5 +728,20 @@ mod test {
         println!("r2 built");
 
         assert_eq!(*r1, *r2);
+
+        let r3 = OwnedRecord::new(
+            &signing_secret_key,
+            &RecordParts {
+                kind: Kind::KEY_SCHEDULE,
+                deterministic_nonce: None,
+                timestamp: r1.timestamp() + std::time::Duration::from_millis(10),
+                flags: RecordFlags::empty(),
+                tags_bytes: b"",
+                payload: b"hello world",
+            },
+        )
+        .unwrap();
+
+        assert!(r3 > r1)
     }
 }
