@@ -16,7 +16,7 @@ fn main() {
             deterministic_nonce: None,
             timestamp: Timestamp::now().unwrap(),
             flags: RecordFlags::PRINTABLE,
-            tags_bytes: b"",
+            tags: &*EMPTY_TAGS,
             payload: b"Hello World!",
         },
     )

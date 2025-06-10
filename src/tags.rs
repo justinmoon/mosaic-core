@@ -44,6 +44,10 @@ impl Tags {
         }
     }
 
+    pub(crate) fn from_bytes_unchecked(input: &[u8]) -> &Tags {
+        Self::from_inner(input)
+    }
+
     /// Copy to an allocated owned data type
     #[must_use]
     pub fn to_owned(&self) -> OwnedTags {
@@ -74,6 +78,7 @@ impl<'a> IntoIterator for &'a Tags {
     }
 }
 
+/// An iterator of `Tag`s in `Tags`
 #[derive(Debug)]
 pub struct TagsIter<'a> {
     bytes: &'a [u8],
@@ -99,6 +104,9 @@ impl<'a> Iterator for TagsIter<'a> {
 /// See `Tags` for the borrowed variant.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct OwnedTags(Vec<u8>);
+
+/// Empty Tags
+pub const EMPTY_TAGS: OwnedTags = OwnedTags(vec![]);
 
 impl OwnedTags {
     /// Create a new set of tags
@@ -180,5 +188,37 @@ mod test {
         assert_eq!(iter.next(), Some(&*t2));
         assert_eq!(iter.next(), Some(&*t3));
         assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn test_tags_iterator() {
+        use crate::TagType;
+
+        let example: Vec<u8> = vec![
+            1, 0, // type 1,
+            4, // data length
+            10, 9, 8, 7, // data
+            2, 0, // type 2
+            6, // data length
+            1, 2, 3, 4, 5, 6, // data
+            3, 1, // type
+            3, // data length
+            3, 4, 5, // data
+        ];
+
+        let tags = Tags::from_bytes(&*example).unwrap();
+        let mut iter = tags.iter();
+
+        let tag0 = iter.next().unwrap();
+        let tag1 = iter.next().unwrap();
+        let tag2 = iter.next().unwrap();
+        assert_eq!(iter.next(), None);
+
+        assert_eq!(tag0.data_bytes(), &[10, 9, 8, 7]);
+        assert_eq!(tag0.get_type(), TagType(1));
+        assert_eq!(tag1.data_bytes(), &[1, 2, 3, 4, 5, 6]);
+        assert_eq!(tag1.get_type(), TagType(2));
+        assert_eq!(tag2.data_bytes(), &[3, 4, 5]);
+        assert_eq!(tag2.get_type(), TagType(259));
     }
 }

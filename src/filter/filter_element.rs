@@ -749,7 +749,7 @@ macro_rules! test_filter_element_type {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{OwnedRecord, RecordFlags, RecordParts, SecretKey};
+    use crate::{OwnedRecord, RecordFlags, RecordParts, SecretKey, EMPTY_TAGS};
 
     #[test]
     fn test_some_filter_elements() {
@@ -778,7 +778,7 @@ mod test {
                 deterministic_nonce: None,
                 timestamp: Timestamp::now().unwrap(),
                 flags: RecordFlags::PRINTABLE,
-                tags_bytes: b"",
+                tags: &*EMPTY_TAGS,
                 payload: b"Hello World!",
             },
         )
@@ -793,7 +793,7 @@ mod test {
                 deterministic_nonce: None,
                 timestamp: Timestamp::now().unwrap(),
                 flags: RecordFlags::PRINTABLE,
-                tags_bytes: b"",
+                tags: &*EMPTY_TAGS,
                 payload: b"Hello World!",
             },
         )

@@ -1,5 +1,5 @@
 use crate::{
-    Address, Error, Id, InnerError, Kind, PublicKey, RecordFlags, SecretKey, Tag, Timestamp,
+    Address, Error, Id, InnerError, Kind, PublicKey, RecordFlags, SecretKey, Tags, Timestamp,
 };
 use ed25519_dalek::Signature;
 use std::cmp::Ordering;
@@ -97,7 +97,7 @@ impl Record {
             address,
             parts.timestamp,
             parts.flags,
-            parts.tags_bytes,
+            parts.tags,
             parts.payload,
         )
     }
@@ -115,13 +115,13 @@ impl Record {
         address: Address,
         timestamp: Timestamp,
         flags: RecordFlags,
-        tags_bytes: &[u8],
+        tags: &Tags,
         payload: &[u8],
     ) -> Result<&'a Record, Error> {
-        if tags_bytes.len() > 65_536 {
+        if tags.as_bytes().len() > 65_536 {
             return Err(InnerError::RecordTooLong.into());
         }
-        let padded_tags_len = padded_len!(tags_bytes.len());
+        let padded_tags_len = padded_len!(tags.as_bytes().len());
         let padded_payload_len = padded_len!(payload.len());
         let len = HEADER_LEN + padded_tags_len + padded_payload_len;
         if len > 1_048_576 {
@@ -139,14 +139,14 @@ impl Record {
 
         buffer[tag_end..tag_end + payload.len()].copy_from_slice(payload);
 
-        buffer[HEADER_LEN..HEADER_LEN + tags_bytes.len()].copy_from_slice(tags_bytes);
+        buffer[HEADER_LEN..HEADER_LEN + tags.as_bytes().len()].copy_from_slice(tags.as_bytes());
 
         #[allow(clippy::cast_possible_truncation)]
         let payload_len = payload.len() as u32;
         buffer[LEN_P_RANGE].copy_from_slice(payload_len.to_le_bytes().as_slice());
 
         #[allow(clippy::cast_possible_truncation)]
-        let tags_len = tags_bytes.len() as u16;
+        let tags_len = tags.as_bytes().len() as u16;
         buffer[LEN_T_RANGE].copy_from_slice(tags_len.to_le_bytes().as_slice());
 
         buffer[TIMESTAMP_RANGE].copy_from_slice(timestamp.to_bytes().as_slice());
@@ -334,10 +334,10 @@ impl Record {
         padded_len!(self.tags_len())
     }
 
-    /// Tags area bytes
+    /// Tags
     #[must_use]
-    pub fn tags_bytes(&self) -> &[u8] {
-        &self.0[HEADER_LEN..HEADER_LEN + self.tags_len()]
+    pub fn tags(&self) -> &Tags {
+        Tags::from_bytes_unchecked(&self.0[HEADER_LEN..HEADER_LEN + self.tags_len()])
     }
 
     /// Payload length
@@ -362,15 +362,6 @@ impl Record {
     pub fn payload_bytes(&self) -> &[u8] {
         let start = HEADER_LEN + self.tags_padded_len();
         &self.0[start..start + self.payload_len()]
-    }
-
-    /// Iterate over the Tags
-    #[must_use]
-    pub fn tags(&self) -> TagsIter<'_> {
-        TagsIter {
-            bytes: self.tags_bytes(),
-            offset: 0,
-        }
     }
 }
 
@@ -408,7 +399,11 @@ impl std::fmt::Display for Record {
         writeln!(f, "  timestamp: {}", self.timestamp())?;
         writeln!(f, "  kind: {}", self.kind())?;
         writeln!(f, "  flags: {}", self.flags())?;
-        writeln!(f, "  tags (zbase32): {}", z32::encode(self.tags_bytes()))?;
+        writeln!(
+            f,
+            "  tags (zbase32): {}",
+            z32::encode(self.tags().as_bytes())
+        )?;
         if self.flags().contains(RecordFlags::PRINTABLE) {
             writeln!(
                 f,
@@ -472,7 +467,7 @@ impl OwnedRecord {
     /// Create a new `OwnedRecord` from component parts.
     ///
     /// ```
-    /// # use mosaic_core::{Kind, OwnedRecord, RecordFlags, RecordParts, SecretKey, Timestamp};
+    /// # use mosaic_core::{EMPTY_TAGS, Kind, OwnedRecord, RecordFlags, RecordParts, SecretKey, Timestamp};
     /// let mut csprng = rand::rngs::OsRng;
     /// let secret_key = SecretKey::generate(&mut csprng);
     /// let mut parts = RecordParts {
@@ -480,7 +475,7 @@ impl OwnedRecord {
     ///     deterministic_nonce: None,
     ///     timestamp: Timestamp::now().unwrap(),
     ///     flags: RecordFlags::empty(),
-    ///     tags_bytes: &[],
+    ///     tags: &*EMPTY_TAGS,
     ///     payload: &[],
     /// };
     /// let record = OwnedRecord::new(&secret_key, &parts).unwrap();
@@ -502,7 +497,7 @@ impl OwnedRecord {
             address,
             parts.timestamp,
             parts.flags,
-            parts.tags_bytes,
+            parts.tags,
             parts.payload,
         )
     }
@@ -520,13 +515,13 @@ impl OwnedRecord {
         address: Address,
         timestamp: Timestamp,
         flags: RecordFlags,
-        tags_bytes: &[u8],
+        tags: &Tags,
         payload: &[u8],
     ) -> Result<OwnedRecord, Error> {
-        if tags_bytes.len() > 65_536 {
+        if tags.as_bytes().len() > 65_536 {
             return Err(InnerError::RecordTooLong.into());
         }
-        let padded_tags_len = padded_len!(tags_bytes.len());
+        let padded_tags_len = padded_len!(tags.as_bytes().len());
         let padded_payload_len = padded_len!(payload.len());
         let len = HEADER_LEN + padded_tags_len + padded_payload_len;
         if len > 1_048_576 {
@@ -539,7 +534,7 @@ impl OwnedRecord {
             address,
             timestamp,
             flags,
-            tags_bytes,
+            tags,
             payload,
         )?;
         Ok(OwnedRecord(buffer))
@@ -610,7 +605,7 @@ pub struct RecordParts<'a> {
     pub flags: RecordFlags,
 
     /// The tags
-    pub tags_bytes: &'a [u8],
+    pub tags: &'a Tags,
 
     /// The payload
     pub payload: &'a [u8],
@@ -620,76 +615,15 @@ impl RecordParts<'_> {
     /// Compute the length of the record that would be created from these parts
     #[must_use]
     pub fn record_len(&self) -> usize {
-        let padded_tags_len = padded_len!(self.tags_bytes.len());
+        let padded_tags_len = padded_len!(self.tags.as_bytes().len());
         let padded_payload_len = padded_len!(self.payload.len());
         HEADER_LEN + padded_tags_len + padded_payload_len
-    }
-}
-
-/// An iterator of the `Tag`s of a `Record`
-#[derive(Debug)]
-pub struct TagsIter<'a> {
-    bytes: &'a [u8],
-    offset: usize,
-}
-
-impl<'a> Iterator for TagsIter<'a> {
-    type Item = &'a Tag;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let offset = self.offset;
-        let full_len = self.bytes.len();
-        if full_len < offset + 3 {
-            None
-        } else {
-            let data_len = self.bytes[offset + 2] as usize;
-            if full_len < offset + 3 + data_len {
-                None
-            } else {
-                self.offset += 3 + data_len; // prepare offset for next tag
-                Some(unsafe {
-                    Tag::from_bytes(&self.bytes[offset..offset + 3 + data_len]).unwrap()
-                })
-            }
-        }
     }
 }
 
 #[cfg(test)]
 mod test {
     use crate::*;
-
-    #[test]
-    fn test_tags_iterator() {
-        let example: Vec<u8> = vec![
-            1, 0, // type 1,
-            4, // data length
-            10, 9, 8, 7, // data
-            2, 0, // type 2
-            6, // data length
-            1, 2, 3, 4, 5, 6, // data
-            3, 1, // type
-            3, // data length
-            3, 4, 5, // data
-        ];
-
-        let mut iter = TagsIter {
-            bytes: &example,
-            offset: 0,
-        };
-
-        let tag0 = iter.next().unwrap();
-        let tag1 = iter.next().unwrap();
-        let tag2 = iter.next().unwrap();
-        assert_eq!(iter.next(), None);
-
-        assert_eq!(tag0.data_bytes(), &[10, 9, 8, 7]);
-        assert_eq!(tag0.get_type(), TagType(1));
-        assert_eq!(tag1.data_bytes(), &[1, 2, 3, 4, 5, 6]);
-        assert_eq!(tag1.get_type(), TagType(2));
-        assert_eq!(tag2.data_bytes(), &[3, 4, 5]);
-        assert_eq!(tag2.get_type(), TagType(259));
-    }
 
     #[test]
     fn test_padded_lengths_idea() {
@@ -715,7 +649,7 @@ mod test {
                 deterministic_nonce: None,
                 timestamp: Timestamp::now().unwrap(),
                 flags: RecordFlags::empty(),
-                tags_bytes: b"",
+                tags: &*EMPTY_TAGS,
                 payload: b"hello world",
             },
         )
@@ -736,7 +670,7 @@ mod test {
                 deterministic_nonce: None,
                 timestamp: r1.timestamp() + std::time::Duration::from_millis(10),
                 flags: RecordFlags::empty(),
-                tags_bytes: b"",
+                tags: &*EMPTY_TAGS,
                 payload: b"hello world",
             },
         )

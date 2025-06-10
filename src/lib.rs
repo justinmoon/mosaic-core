@@ -88,7 +88,7 @@ mod keys;
 pub use keys::{PublicKey, SecretKey};
 
 mod record;
-pub use record::{OwnedRecord, Record, RecordParts, TagsIter};
+pub use record::{OwnedRecord, Record, RecordParts};
 
 mod record_flags;
 pub use record_flags::{RecordFlags, SignatureScheme};
@@ -103,7 +103,7 @@ mod tag;
 pub use tag::{OwnedTag, Tag, TagType};
 
 mod tags;
-pub use tags::{OwnedTags, Tags};
+pub use tags::{OwnedTags, Tags, TagsIter, EMPTY_TAGS};
 
 mod timestamp;
 pub use timestamp::{Timestamp, MAX_NANOSECONDS};
