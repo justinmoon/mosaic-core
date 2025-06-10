@@ -102,6 +102,9 @@ pub use server_bootstrap::ServerBootstrap;
 mod tag;
 pub use tag::{OwnedTag, Tag, TagType};
 
+mod tags;
+pub use tags::{OwnedTags, Tags};
+
 mod timestamp;
 pub use timestamp::{Timestamp, MAX_NANOSECONDS};
 
