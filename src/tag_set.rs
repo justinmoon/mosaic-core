@@ -116,9 +116,12 @@ impl OwnedTagSet {
     }
 
     /// Create a new `TagSet` from an iterator over `Tag`s
-    pub fn from_tags<'a, T: std::iter::Iterator<Item = &'a Tag>>(input_tags: T) -> OwnedTagSet {
+    pub fn from_tags<'a, I>(input_tags: I) -> OwnedTagSet
+    where
+        I: IntoIterator<Item = &'a Tag>,
+    {
         let mut tag_set = Self::new();
-        for tag in input_tags {
+        for tag in input_tags.into_iter() {
             tag_set.add_tag(tag);
         }
         tag_set
