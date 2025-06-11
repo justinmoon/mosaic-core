@@ -21,7 +21,7 @@
 //! [`Record`]s are of various [`Kind`]s and have [`Timestamp`]s and
 //! [`RecordFlags`].
 //!
-//! [`Record`]s may have `Tags` (TBD) of varying [`TagType`]s.
+//! [`Record`]s may have `Tag`s (TBD) of varying [`TagType`]s.
 //!
 //! Every [`Record`] has an [`Id`] and an [`Address`] by which it can be
 //! referred. In some contexts a [`Record`] may be referred to by either,
@@ -102,8 +102,8 @@ pub use server_bootstrap::ServerBootstrap;
 mod tag;
 pub use tag::{OwnedTag, Tag, TagType};
 
-mod tags;
-pub use tags::{OwnedTags, Tags, TagsIter, EMPTY_TAGS};
+mod tag_set;
+pub use tag_set::{OwnedTagSet, TagSet, TagSetIter, EMPTY_TAG_SET};
 
 mod timestamp;
 pub use timestamp::{Timestamp, MAX_NANOSECONDS};

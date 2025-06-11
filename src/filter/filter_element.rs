@@ -210,7 +210,7 @@ impl FilterElement {
                 let mut i = 8;
                 while len > i + 3 {
                     let taglen = self.0[i + 2] as usize;
-                    for tag in record.tags() {
+                    for tag in record.tag_set() {
                         if tag.as_bytes() == &self.0[i..i + 3 + taglen] {
                             return Ok(true);
                         }
@@ -248,7 +248,7 @@ impl FilterElement {
                 let mut i = 8;
                 while len > i + 3 {
                     let taglen = self.0[i + 2] as usize;
-                    for tag in record.tags() {
+                    for tag in record.tag_set() {
                         if tag.as_bytes() == &self.0[i..i + 3 + taglen] {
                             return Ok(false);
                         }
@@ -749,7 +749,7 @@ macro_rules! test_filter_element_type {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{OwnedRecord, RecordFlags, RecordParts, SecretKey, EMPTY_TAGS};
+    use crate::{OwnedRecord, RecordFlags, RecordParts, SecretKey, EMPTY_TAG_SET};
 
     #[test]
     fn test_some_filter_elements() {
@@ -778,7 +778,7 @@ mod test {
                 deterministic_nonce: None,
                 timestamp: Timestamp::now().unwrap(),
                 flags: RecordFlags::PRINTABLE,
-                tags: &*EMPTY_TAGS,
+                tag_set: &*EMPTY_TAG_SET,
                 payload: b"Hello World!",
             },
         )
@@ -793,7 +793,7 @@ mod test {
                 deterministic_nonce: None,
                 timestamp: Timestamp::now().unwrap(),
                 flags: RecordFlags::PRINTABLE,
-                tags: &*EMPTY_TAGS,
+                tag_set: &*EMPTY_TAG_SET,
                 payload: b"Hello World!",
             },
         )

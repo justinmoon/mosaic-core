@@ -198,7 +198,7 @@ impl AsMut<Filter> for OwnedFilter {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{Kind, OwnedRecord, RecordFlags, RecordParts, SecretKey, Timestamp, EMPTY_TAGS};
+    use crate::{Kind, OwnedRecord, RecordFlags, RecordParts, SecretKey, Timestamp, EMPTY_TAG_SET};
 
     #[test]
     fn test_filter() {
@@ -223,7 +223,7 @@ mod test {
                 deterministic_nonce: None,
                 timestamp: Timestamp::now().unwrap(),
                 flags: RecordFlags::PRINTABLE,
-                tags: &*EMPTY_TAGS,
+                tag_set: &*EMPTY_TAG_SET,
                 payload: b"Hello World!",
             },
         )
@@ -238,7 +238,7 @@ mod test {
                 deterministic_nonce: None,
                 timestamp: Timestamp::now().unwrap(),
                 flags: RecordFlags::PRINTABLE,
-                tags: &*EMPTY_TAGS,
+                tag_set: &*EMPTY_TAG_SET,
                 payload: b"Hello World!",
             },
         )

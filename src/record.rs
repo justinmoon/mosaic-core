@@ -1,5 +1,5 @@
 use crate::{
-    Address, Error, Id, InnerError, Kind, PublicKey, RecordFlags, SecretKey, Tags, Timestamp,
+    Address, Error, Id, InnerError, Kind, PublicKey, RecordFlags, SecretKey, TagSet, Timestamp,
 };
 use ed25519_dalek::Signature;
 use std::cmp::Ordering;
@@ -97,7 +97,7 @@ impl Record {
             address,
             parts.timestamp,
             parts.flags,
-            parts.tags,
+            parts.tag_set,
             parts.payload,
         )
     }
@@ -115,7 +115,7 @@ impl Record {
         address: Address,
         timestamp: Timestamp,
         flags: RecordFlags,
-        tags: &Tags,
+        tags: &TagSet,
         payload: &[u8],
     ) -> Result<&'a Record, Error> {
         if tags.as_bytes().len() > 65_536 {
@@ -199,7 +199,7 @@ impl Record {
         if self.0.len() < HEADER_LEN {
             return Err(InnerError::RecordTooShort.into());
         }
-        if HEADER_LEN + self.tags_padded_len() + self.payload_padded_len() != self.0.len() {
+        if HEADER_LEN + self.tag_set_padded_len() + self.payload_padded_len() != self.0.len() {
             return Err(InnerError::RecordSectionLengthMismatch.into());
         }
 
@@ -313,31 +313,31 @@ impl Record {
         RecordFlags::from_bits_retain(u16::from_le_bytes(self.0[FLAGS_RANGE].try_into().unwrap()))
     }
 
-    /// Timestamp
+    /// `Timestamp`
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
     pub fn timestamp(&self) -> Timestamp {
         Timestamp::from_bytes(self.0[TIMESTAMP_RANGE].try_into().unwrap()).unwrap()
     }
 
-    /// Tags length
+    /// `TagSet` length
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
-    pub fn tags_len(&self) -> usize {
+    pub fn tag_set_len(&self) -> usize {
         u16::from_le_bytes(self.0[LEN_T_RANGE].try_into().unwrap()) as usize
     }
 
-    /// Tags padded length
+    /// `TagSet` padded length
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
-    pub fn tags_padded_len(&self) -> usize {
-        padded_len!(self.tags_len())
+    pub fn tag_set_padded_len(&self) -> usize {
+        padded_len!(self.tag_set_len())
     }
 
-    /// Tags
+    /// `TagSet`
     #[must_use]
-    pub fn tags(&self) -> &Tags {
-        Tags::from_bytes_unchecked(&self.0[HEADER_LEN..HEADER_LEN + self.tags_len()])
+    pub fn tag_set(&self) -> &TagSet {
+        TagSet::from_bytes_unchecked(&self.0[HEADER_LEN..HEADER_LEN + self.tag_set_len()])
     }
 
     /// Payload length
@@ -360,7 +360,7 @@ impl Record {
     /// decompressing them.
     #[must_use]
     pub fn payload_bytes(&self) -> &[u8] {
-        let start = HEADER_LEN + self.tags_padded_len();
+        let start = HEADER_LEN + self.tag_set_padded_len();
         &self.0[start..start + self.payload_len()]
     }
 }
@@ -401,8 +401,8 @@ impl std::fmt::Display for Record {
         writeln!(f, "  flags: {}", self.flags())?;
         writeln!(
             f,
-            "  tags (zbase32): {}",
-            z32::encode(self.tags().as_bytes())
+            "  tag_set (zbase32): {}",
+            z32::encode(self.tag_set().as_bytes())
         )?;
         if self.flags().contains(RecordFlags::PRINTABLE) {
             writeln!(
@@ -448,7 +448,7 @@ impl Ord for Record {
 //   hash is correct
 //   signature is correct
 //   reserved flags are zero
-//   208 + tags_padded_len() + payload_padded_len() == self.0.len()
+//   208 + tag_set_padded_len() + payload_padded_len() == self.0.len()
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct OwnedRecord(Vec<u8>);
 
@@ -467,7 +467,7 @@ impl OwnedRecord {
     /// Create a new `OwnedRecord` from component parts.
     ///
     /// ```
-    /// # use mosaic_core::{EMPTY_TAGS, Kind, OwnedRecord, RecordFlags, RecordParts, SecretKey, Timestamp};
+    /// # use mosaic_core::{EMPTY_TAG_SET, Kind, OwnedRecord, RecordFlags, RecordParts, SecretKey, Timestamp};
     /// let mut csprng = rand::rngs::OsRng;
     /// let secret_key = SecretKey::generate(&mut csprng);
     /// let mut parts = RecordParts {
@@ -475,7 +475,7 @@ impl OwnedRecord {
     ///     deterministic_nonce: None,
     ///     timestamp: Timestamp::now().unwrap(),
     ///     flags: RecordFlags::empty(),
-    ///     tags: &*EMPTY_TAGS,
+    ///     tag_set: &*EMPTY_TAG_SET,
     ///     payload: &[],
     /// };
     /// let record = OwnedRecord::new(&secret_key, &parts).unwrap();
@@ -497,7 +497,7 @@ impl OwnedRecord {
             address,
             parts.timestamp,
             parts.flags,
-            parts.tags,
+            parts.tag_set,
             parts.payload,
         )
     }
@@ -515,15 +515,15 @@ impl OwnedRecord {
         address: Address,
         timestamp: Timestamp,
         flags: RecordFlags,
-        tags: &Tags,
+        tag_set: &TagSet,
         payload: &[u8],
     ) -> Result<OwnedRecord, Error> {
-        if tags.as_bytes().len() > 65_536 {
+        if tag_set.as_bytes().len() > 65_536 {
             return Err(InnerError::RecordTooLong.into());
         }
-        let padded_tags_len = padded_len!(tags.as_bytes().len());
+        let padded_tag_set_len = padded_len!(tag_set.as_bytes().len());
         let padded_payload_len = padded_len!(payload.len());
-        let len = HEADER_LEN + padded_tags_len + padded_payload_len;
+        let len = HEADER_LEN + padded_tag_set_len + padded_payload_len;
         if len > 1_048_576 {
             return Err(InnerError::RecordTooLong.into());
         }
@@ -534,7 +534,7 @@ impl OwnedRecord {
             address,
             timestamp,
             flags,
-            tags,
+            tag_set,
             payload,
         )?;
         Ok(OwnedRecord(buffer))
@@ -604,8 +604,8 @@ pub struct RecordParts<'a> {
     /// The flags
     pub flags: RecordFlags,
 
-    /// The tags
-    pub tags: &'a Tags,
+    /// The tag set
+    pub tag_set: &'a TagSet,
 
     /// The payload
     pub payload: &'a [u8],
@@ -615,9 +615,9 @@ impl RecordParts<'_> {
     /// Compute the length of the record that would be created from these parts
     #[must_use]
     pub fn record_len(&self) -> usize {
-        let padded_tags_len = padded_len!(self.tags.as_bytes().len());
+        let padded_tag_set_len = padded_len!(self.tag_set.as_bytes().len());
         let padded_payload_len = padded_len!(self.payload.len());
-        HEADER_LEN + padded_tags_len + padded_payload_len
+        HEADER_LEN + padded_tag_set_len + padded_payload_len
     }
 }
 
@@ -649,7 +649,7 @@ mod test {
                 deterministic_nonce: None,
                 timestamp: Timestamp::now().unwrap(),
                 flags: RecordFlags::empty(),
-                tags: &*EMPTY_TAGS,
+                tag_set: &*EMPTY_TAG_SET,
                 payload: b"hello world",
             },
         )
@@ -670,7 +670,7 @@ mod test {
                 deterministic_nonce: None,
                 timestamp: r1.timestamp() + std::time::Duration::from_millis(10),
                 flags: RecordFlags::empty(),
-                tags: &*EMPTY_TAGS,
+                tag_set: &*EMPTY_TAG_SET,
                 payload: b"hello world",
             },
         )
