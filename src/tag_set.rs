@@ -121,7 +121,7 @@ impl OwnedTagSet {
         I: IntoIterator<Item = &'a Tag>,
     {
         let mut tag_set = Self::new();
-        for tag in input_tags.into_iter() {
+        for tag in input_tags {
             tag_set.add_tag(tag);
         }
         tag_set
@@ -184,7 +184,7 @@ mod test {
             Reference::from_printable(printable).unwrap()
         };
         let url = "https://example.com/meme.jpg";
-        let kind = Kind(1234);
+        let kind = Kind::from_bytes([0, 0, 0, 0, 99, 0, 1, 3]);
         let offset = 71;
 
         let mut tag_set = OwnedTagSet::new();

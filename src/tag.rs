@@ -149,12 +149,9 @@ impl Tag {
     #[allow(clippy::missing_panics_doc)]
     pub fn get_reference(&self) -> Result<Option<Reference>, Error> {
         match self.get_type() {
-            TagType::REPLY | TagType::ROOT => Ok(Some(Reference::from_bytes(
-                self.0[8..56].try_into().unwrap(),
-            )?)),
-            TagType::CONTENT_SEGMENT_QUOTE => Ok(Some(Reference::from_bytes(
-                self.0[16..64].try_into().unwrap(),
-            )?)),
+            TagType::REPLY | TagType::ROOT | TagType::CONTENT_SEGMENT_QUOTE => Ok(Some(
+                Reference::from_bytes(self.0[16..64].try_into().unwrap())?,
+            )),
             _ => Ok(None),
         }
     }
@@ -188,11 +185,8 @@ impl Tag {
     #[allow(clippy::missing_panics_doc)]
     pub fn get_kind(&self) -> Option<Kind> {
         match self.get_type() {
-            TagType::REPLY | TagType::ROOT => {
-                Some(Kind(u16::from_le_bytes(self.0[6..8].try_into().unwrap())))
-            }
-            TagType::CONTENT_SEGMENT_QUOTE => {
-                Some(Kind(u16::from_le_bytes(self.0[14..16].try_into().unwrap())))
+            TagType::REPLY | TagType::ROOT | TagType::CONTENT_SEGMENT_QUOTE => {
+                Some(Kind::from_bytes(self.0[8..16].try_into().unwrap()))
             }
             _ => None,
         }
@@ -247,7 +241,7 @@ impl Tag {
         refer: &Reference,
         kind: Kind,
     ) -> Result<&'a Tag, Error> {
-        const LEN: usize = 56;
+        const LEN: usize = 64;
         if buffer.len() < LEN {
             return Err(InnerError::EndOfOutput.into());
         }
@@ -256,8 +250,9 @@ impl Tag {
         {
             buffer[2] = (LEN - 3) as u8;
         }
-        buffer[6..8].copy_from_slice(kind.0.to_le_bytes().as_slice());
-        buffer[8..LEN].copy_from_slice(refer.as_bytes().as_slice());
+        buffer[3..8].fill(0);
+        buffer[8..16].copy_from_slice(kind.to_bytes().as_slice());
+        buffer[16..LEN].copy_from_slice(refer.as_bytes().as_slice());
         Ok(Tag::from_inner(&buffer[..LEN]))
     }
 
@@ -271,7 +266,7 @@ impl Tag {
         refer: &Reference,
         kind: Kind,
     ) -> Result<&'a Tag, Error> {
-        const LEN: usize = 56;
+        const LEN: usize = 64;
         if buffer.len() < LEN {
             return Err(InnerError::EndOfOutput.into());
         }
@@ -280,8 +275,9 @@ impl Tag {
         {
             buffer[2] = (LEN - 3) as u8;
         }
-        buffer[6..8].copy_from_slice(kind.0.to_le_bytes().as_slice());
-        buffer[8..LEN].copy_from_slice(refer.as_bytes().as_slice());
+        buffer[3..8].fill(0);
+        buffer[8..16].copy_from_slice(kind.to_bytes().as_slice());
+        buffer[16..LEN].copy_from_slice(refer.as_bytes().as_slice());
         Ok(Tag::from_inner(&buffer[..LEN]))
     }
 
@@ -405,7 +401,7 @@ impl Tag {
             buffer[2] = (LEN - 3) as u8;
         }
         buffer[4..8].copy_from_slice(offset.to_le_bytes().as_slice());
-        buffer[14..16].copy_from_slice(kind.0.to_le_bytes().as_slice());
+        buffer[8..16].copy_from_slice(kind.to_bytes().as_slice());
         buffer[16..LEN].copy_from_slice(refer.as_bytes().as_slice());
         Ok(Tag::from_inner(&buffer[..LEN]))
     }
@@ -526,7 +522,7 @@ impl OwnedTag {
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
     pub fn new_reply(refer: &Reference, kind: Kind) -> OwnedTag {
-        const LEN: usize = 56;
+        const LEN: usize = 64;
         let mut bytes: Vec<u8> = vec![0; LEN];
         let _ = Tag::write_reply(&mut bytes, refer, kind).unwrap();
         OwnedTag(bytes)
@@ -538,7 +534,7 @@ impl OwnedTag {
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
     pub fn new_root(refer: &Reference, kind: Kind) -> OwnedTag {
-        const LEN: usize = 56;
+        const LEN: usize = 64;
         let mut bytes: Vec<u8> = vec![0; LEN];
         let _ = Tag::write_root(&mut bytes, refer, kind).unwrap();
         OwnedTag(bytes)
@@ -697,7 +693,7 @@ mod test {
         let url = "https://example.com/meme.jpg";
         let offset = 71;
         let id: [u8; 32] = [7; 32];
-        let kind = Kind(1234);
+        let kind = Kind::from_bytes([0, 0, 0, 0, 99, 0, 1, 3]);
 
         let v = test_tag_type!(
             OwnedTag::new_notify_public_key(&public_key),

@@ -15,7 +15,7 @@ fn main() {
             kind: Kind::MICROBLOG_ROOT,
             deterministic_nonce: None,
             timestamp: Timestamp::now().unwrap(),
-            flags: RecordFlags::PRINTABLE,
+            flags: RecordFlags::empty(),
             tag_set: &*EMPTY_TAG_SET,
             payload: b"Hello World!",
         },

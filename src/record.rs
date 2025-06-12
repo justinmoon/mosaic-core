@@ -294,9 +294,7 @@ impl Record {
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
     pub fn kind(&self) -> Kind {
-        Kind(u16::from_le_bytes(
-            self.0[ADDR_KIND_RANGE].try_into().unwrap(),
-        ))
+        Kind::from_bytes(self.0[ADDR_KIND_RANGE].try_into().unwrap())
     }
 
     /// Nonce
@@ -374,8 +372,8 @@ const ID_HASH_RANGE: Range<usize> = 72..112;
 const SIGNING_KEY_RANGE: Range<usize> = 112..144;
 
 const ADDR_RANGE: Range<usize> = 144..192;
-const ADDR_NONCE_RANGE: Range<usize> = 144..158;
-const ADDR_KIND_RANGE: Range<usize> = 158..160;
+const ADDR_NONCE_RANGE: Range<usize> = 144..152;
+const ADDR_KIND_RANGE: Range<usize> = 152..160;
 const ADDR_AUTHOR_KEY_RANGE: Range<usize> = 160..192;
 
 const TIMESTAMP_RANGE: Range<usize> = 192..200;
@@ -404,7 +402,7 @@ impl std::fmt::Display for Record {
             "  tag_set (zbase32): {}",
             z32::encode(self.tag_set().as_bytes())
         )?;
-        if self.flags().contains(RecordFlags::PRINTABLE) {
+        if self.kind().is_printable() {
             writeln!(
                 f,
                 "  payload: {}",
@@ -471,7 +469,7 @@ impl OwnedRecord {
     /// let mut csprng = rand::rngs::OsRng;
     /// let secret_key = SecretKey::generate(&mut csprng);
     /// let mut parts = RecordParts {
-    ///     kind: Kind(1),
+    ///     kind: Kind::from_bytes([0,0,0,0,99,0,1,14]),
     ///     deterministic_nonce: None,
     ///     timestamp: Timestamp::now().unwrap(),
     ///     flags: RecordFlags::empty(),
@@ -593,7 +591,7 @@ pub struct RecordParts<'a> {
     /// The kind of record
     pub kind: Kind,
 
-    /// Optionally, a deterministic nonce for the Address. The first 14 bytes
+    /// Optionally, a deterministic nonce for the Address. The first 8 bytes
     /// provided will be used. If less are provided, the remainder will be
     /// random.
     pub deterministic_nonce: Option<&'a [u8]>,

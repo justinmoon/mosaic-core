@@ -10,24 +10,9 @@ bitflags! {
         /// The payload is compressed with Zstd
         const ZSTD = 0x01;
 
-        /// The payload is printable and can be displayed to end users
-        const PRINTABLE = 0x02;
-
         /// Servers SHOULD only accept the record from the author (requiring
         /// authentication)
         const FROM_AUTHOR = 0x04;
-
-        /// Servers SHOULD only serve the record to people tagged (requiring
-        /// authentication)
-        const TO_RECIPIENTS = 0x08;
-
-        /// The record is ephemeral; Servers should serve it to current
-        /// subscribers and not keep it.
-        const EPHEMERAL = 0x10;
-
-        /// Among a group of records with the same address, only the latest one is
-        /// valid, the others SHOULD be deleted or at least not served.
-        const EDITABLE = 0x20;
     }
 }
 
@@ -43,20 +28,13 @@ impl std::fmt::Display for RecordFlags {
         if self.contains(RecordFlags::ZSTD) {
             parts.push("ZSTD");
         }
-        if self.contains(RecordFlags::PRINTABLE) {
-            parts.push("PRINTABLE");
-        }
         if self.contains(RecordFlags::FROM_AUTHOR) {
             parts.push("FROM_AUTHOR");
         }
-        if self.contains(RecordFlags::TO_RECIPIENTS) {
-            parts.push("TO_RECIPIENTS");
-        }
-        if self.contains(RecordFlags::EPHEMERAL) {
-            parts.push("EPHEMERAL");
-        }
-        if self.contains(RecordFlags::EDITABLE) {
-            parts.push("EDITABLE");
+        match self.get_signature_scheme() {
+            SignatureScheme::Ed25519 => parts.push("ED25519"),
+            SignatureScheme::Secp256k1 => parts.push("SECP256K1"),
+            _ => parts.push("INVALID_SIG_SCHEME"),
         }
         write!(f, "{}", parts.join(" | "))
     }

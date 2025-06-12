@@ -5,8 +5,8 @@ use rand_core::{OsRng, RngCore};
 /// the group is the current valid record and the previous ones
 /// have been replaced.
 ///
-/// Addresses sort in time order and contain a timestamp, a kind,
-/// a nonce, and the master public key of the author.
+/// Addresses contain a nonce, a kind, and the master public key
+/// of the author.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Address([u8; 48]);
 
@@ -36,7 +36,7 @@ impl Address {
     /// Create a new Address with a random nonce
     #[must_use]
     pub fn new_random(author_public_key: PublicKey, kind: Kind) -> Address {
-        let mut nonce: [u8; 14] = [0; 14];
+        let mut nonce: [u8; 8] = [0; 8];
         OsRng.fill_bytes(&mut nonce);
         Self::from_parts(author_public_key, kind, &nonce)
     }
@@ -52,16 +52,16 @@ impl Address {
         let mut hasher = blake3::Hasher::new();
         let _ = hasher.update(key);
         hasher.finalize_xof().fill(&mut truehash[..]);
-        Self::from_parts(author_public_key, kind, truehash[0..14].try_into().unwrap())
+        Self::from_parts(author_public_key, kind, truehash[0..8].try_into().unwrap())
     }
 
     /// Create an Address from parts
     #[must_use]
-    pub fn from_parts(author_public_key: PublicKey, kind: Kind, nonce: &[u8; 14]) -> Address {
+    pub fn from_parts(author_public_key: PublicKey, kind: Kind, nonce: &[u8; 8]) -> Address {
         let mut bytes: [u8; 48] = [0; 48];
         bytes[16..48].copy_from_slice(author_public_key.as_bytes().as_slice());
-        bytes[14..16].copy_from_slice(kind.0.to_le_bytes().as_slice());
-        bytes[0..14].copy_from_slice(nonce.as_slice());
+        bytes[8..16].copy_from_slice(kind.to_bytes().as_slice());
+        bytes[0..8].copy_from_slice(nonce.as_slice());
         bytes[0] |= 1 << 7; // Turn on MSBit
         Address(bytes)
     }
@@ -94,14 +94,14 @@ impl Address {
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
     pub fn kind(&self) -> Kind {
-        Kind(u16::from_le_bytes(self.0[14..16].try_into().unwrap()))
+        Kind::from_bytes(self.0[8..16].try_into().unwrap())
     }
 
     /// Extract nonce from the Address
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
-    pub fn nonce(&self) -> &[u8; 14] {
-        self.0[0..14].try_into().unwrap()
+    pub fn nonce(&self) -> &[u8; 8] {
+        self.0[0..8].try_into().unwrap()
     }
 
     /// Extract Author master public key from the Address
@@ -159,11 +159,12 @@ mod test {
             );
             println!("{}", addr0);
         */
+
         let printable =
-            "moref01ge91q91o36bcfrk7qfhpnydyyobh88zknproi8j5791e5mekfez1ye6zrifbhh6m1dtizcsp4y5w";
+            "moref047rad578begeoyyyyyyyyyybbaobh88zknproi8j5791e5mekfez1ye6zrifbhh6m1dtizcsp4y5w";
 
         let addr = Address::from_printable(printable).unwrap();
         assert_eq!(addr.author_public_key(), author_key);
-        assert_eq!(addr.kind(), Kind::MICROBLOG_ROOT);
+        assert_eq!(addr.kind(), Kind::KEY_SCHEDULE);
     }
 }

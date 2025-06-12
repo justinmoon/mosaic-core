@@ -178,16 +178,10 @@ impl FilterElement {
             }
             FilterElementType::KINDS => {
                 let wordlen = self.0[1] as usize;
-                let len = wordlen * 8;
-                let record_kind = record.kind();
-                let count = self.0[7] as usize;
-                if len < 8 + count * 2 {
-                    return Err(InnerError::InvalidLength.into());
-                }
-                for n in 0..count {
-                    let i = 8 + n * 2;
-                    let kind = Kind::from_bytes(self.0[i..i + 2].try_into().unwrap());
-                    if record_kind == kind {
+                let record_kind_bytes = record.kind().to_bytes();
+                for w in 0..wordlen - 1 {
+                    let i = 8 + w * 8;
+                    if &self.0[i..i + 8] == record_kind_bytes.as_slice() {
                         return Ok(true);
                     }
                 }
@@ -393,13 +387,12 @@ impl Iterator for FeKindsIter<'_> {
     type Item = Kind;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let numkinds = self.fe.0[7] as usize;
-        let bytelen = 8 + numkinds * 2;
-        if bytelen < self.offset + 2 {
+        let bytelen = self.fe.0.len();
+        if bytelen < self.offset + 8 {
             None
         } else {
-            let bytes = self.fe.0[self.offset..self.offset + 2].try_into().unwrap();
-            self.offset += 2;
+            let bytes = self.fe.0[self.offset..self.offset + 8].try_into().unwrap();
+            self.offset += 8;
             Some(Kind::from_bytes(bytes))
         }
     }
@@ -549,20 +542,19 @@ impl OwnedFilterElement {
     /// Returns an Err if you pass in more than 255 keys.
     pub fn new_kinds(kinds: &[Kind]) -> Result<OwnedFilterElement, Error> {
         let numkinds = kinds.len();
-        if numkinds > 255 {
-            return Err(InnerError::TooManyDataElements(255).into());
+        if numkinds > 254 {
+            return Err(InnerError::TooManyDataElements(254).into());
         }
-        let numcells = 1 + padded_len!(numkinds * 2) / 8;
+        let numcells = 1 + numkinds;
 
         let mut bytes: Vec<u8> = vec![0_u8; numcells * 8];
         bytes[0] = FilterElementType::KINDS.0;
         #[allow(clippy::cast_possible_truncation)]
         {
             bytes[1] = numcells as u8;
-            bytes[7] = numkinds as u8;
         }
         for (i, kind) in kinds.iter().enumerate() {
-            bytes[8 + i * 2..8 + i * 2 + 2].copy_from_slice(kind.to_bytes().as_slice());
+            bytes[8 + i * 8..8 + i * 8 + 8].copy_from_slice(kind.to_bytes().as_slice());
         }
         Ok(OwnedFilterElement(bytes))
     }
@@ -777,7 +769,7 @@ mod test {
                 kind: Kind::MICROBLOG_ROOT,
                 deterministic_nonce: None,
                 timestamp: Timestamp::now().unwrap(),
-                flags: RecordFlags::PRINTABLE,
+                flags: RecordFlags::empty(),
                 tag_set: &*EMPTY_TAG_SET,
                 payload: b"Hello World!",
             },
@@ -792,7 +784,7 @@ mod test {
                 kind: Kind::CHAT_MESSAGE,
                 deterministic_nonce: None,
                 timestamp: Timestamp::now().unwrap(),
-                flags: RecordFlags::PRINTABLE,
+                flags: RecordFlags::empty(),
                 tag_set: &*EMPTY_TAG_SET,
                 payload: b"Hello World!",
             },
