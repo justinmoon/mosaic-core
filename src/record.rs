@@ -586,7 +586,7 @@ impl std::fmt::Display for OwnedRecord {
 }
 
 /// The parts of a Record
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct RecordParts<'a> {
     /// The kind of record
     pub kind: Kind,
