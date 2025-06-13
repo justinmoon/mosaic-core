@@ -498,7 +498,7 @@ impl OwnedTag {
             return Err(InnerError::TagTooLong.into());
         }
         let mut buffer = vec![0; 3 + len];
-        buffer[0..1].copy_from_slice(ty.into_u16().to_be_bytes().as_slice());
+        buffer[0..2].copy_from_slice(ty.into_u16().to_be_bytes().as_slice());
         buffer[2] = u8::try_from(len - 3).unwrap();
         buffer[3..].copy_from_slice(value.as_ref());
         Ok(OwnedTag(buffer))
