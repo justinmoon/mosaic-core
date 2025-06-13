@@ -168,13 +168,13 @@ impl AsMut<TagSet> for OwnedTagSet {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::{Kind, OwnedTag, Reference, SecretKey, TagType};
+    use rand::rngs::OsRng;
 
     #[test]
     fn test_tags() {
-        use crate::{Kind, OwnedTag, Reference, SecretKey};
 
         let public_key = {
-            use rand::rngs::OsRng;
             let mut csprng = OsRng;
             let secret_key = SecretKey::generate(&mut csprng);
             secret_key.public()
@@ -232,5 +232,23 @@ mod test {
         assert_eq!(tag1.get_type(), TagType(2));
         assert_eq!(tag2.data_bytes(), &[3, 4, 5]);
         assert_eq!(tag2.get_type(), TagType(259));
+    }
+
+    #[test]
+    fn test_owned_tag_set_from_owned_tags() {
+        let mut csprng = OsRng;
+
+        let secret_key = SecretKey::generate(&mut csprng);
+
+        let tags = vec![
+            OwnedTag::new_notify_public_key(&secret_key.public()),
+            OwnedTag::new_nostr_sister(&[0; 32]),
+            OwnedTag::new(TagType(100), b"testing").unwrap(),
+            OwnedTag::new(TagType(101), b"more testing").unwrap(),
+        ];
+
+        let _owned_tag_set = OwnedTagSet::from_tags(
+            tags.iter().map(|t| &**t)
+        );
     }
 }
