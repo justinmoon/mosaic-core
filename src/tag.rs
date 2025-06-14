@@ -489,13 +489,13 @@ impl OwnedTag {
     /// Errors if the value is too long (max is 253 bytes)
     #[allow(clippy::missing_panics_doc)]
     pub fn new<T: AsRef<[u8]>>(ty: TagType, value: &T) -> Result<OwnedTag, Error> {
-        let len = value.as_ref().len();
-        if len > 253 {
+        let datalen = value.as_ref().len();
+        if datalen > 253 {
             return Err(InnerError::TagTooLong.into());
         }
-        let mut buffer = vec![0; 3 + len];
+        let mut buffer = vec![0; 3 + datalen];
         buffer[0..2].copy_from_slice(ty.into_u16().to_be_bytes().as_slice());
-        buffer[2] = u8::try_from(len - 3).unwrap();
+        buffer[2] = u8::try_from(datalen).unwrap();
         buffer[3..].copy_from_slice(value.as_ref());
         Ok(OwnedTag(buffer))
     }
