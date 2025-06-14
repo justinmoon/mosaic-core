@@ -1,5 +1,4 @@
 use crate::{Error, InnerError, Tag};
-use std::cmp::Ordering;
 use std::ops::{Deref, DerefMut};
 
 /// A sequence of `Tag`s, borrowed
@@ -28,19 +27,19 @@ impl TagSet {
     /// Returns an Err if the data is not valid.
     #[allow(clippy::missing_panics_doc)]
     pub fn from_bytes(input: &[u8]) -> Result<&TagSet, Error> {
+        // We must have at least one tag
         if input.len() < 3 {
             return Err(InnerError::EndOfInput.into());
         }
+
         let mut p = 0;
         loop {
-            let tag = unsafe { Tag::from_bytes(&input[p..])? };
+            let tag = Tag::from_bytes(&input[p..])?;
             let len = tag.as_bytes().len();
-            match (p + len).cmp(&input.len()) {
-                Ordering::Greater => return Err(InnerError::EndOfInput.into()),
-                Ordering::Equal => return Ok(Self::from_inner(input)),
-                Ordering::Less => (),
-            }
             p += len;
+            if input.len() == p {
+                return Ok(Self::from_inner(input));
+            }
         }
     }
 
@@ -92,7 +91,7 @@ impl<'a> Iterator for TagSetIter<'a> {
         if self.p >= self.bytes.len() {
             None
         } else {
-            let tag = unsafe { Tag::from_bytes(&self.bytes[self.p..]).unwrap() };
+            let tag = Tag::from_bytes(&self.bytes[self.p..]).unwrap();
             self.p += tag.as_bytes().len();
             Some(tag)
         }

@@ -79,12 +79,8 @@ impl Tag {
     /// # Errors
     ///
     /// Errors if the input isn't long enough.
-    ///
-    /// # Safety
-    ///
-    /// Be sure the input is a valid Tag.
     #[allow(clippy::missing_panics_doc)]
-    pub unsafe fn from_bytes(input: &[u8]) -> Result<&Tag, Error> {
+    pub fn from_bytes(input: &[u8]) -> Result<&Tag, Error> {
         if input.len() < 3 {
             return Err(InnerError::EndOfInput.into());
         }
