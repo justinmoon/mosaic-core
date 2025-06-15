@@ -84,6 +84,9 @@ impl Tag {
         if input.len() < 3 {
             return Err(InnerError::EndOfInput.into());
         }
+        if input[0] == 0 && input[1] == 0 {
+            return Err(InnerError::Padding.into());
+        }
         let datalen = input[2] as usize;
         if datalen > 253 {
             return Err(InnerError::InvalidTag.into());

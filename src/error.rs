@@ -94,6 +94,9 @@ pub enum InnerError {
     /// Reference is not an ID
     NotAnId,
 
+    /// The bytes are padding
+    Padding,
+
     /// Record section length mismatch
     RecordSectionLengthMismatch,
 
@@ -169,6 +172,7 @@ impl std::fmt::Display for InnerError {
             InnerError::MissingScheme => write!(f, "Missing scheme"),
             InnerError::NotAnAddress => write!(f, "Reference is not an address"),
             InnerError::NotAnId => write!(f, "Reference is not an ID"),
+            InnerError::Padding => write!(f, "The bytes are padding"),
             InnerError::RecordSectionLengthMismatch => write!(f, "Record section length mismatch"),
             InnerError::RecordTooLong => write!(f, "Record too long"),
             InnerError::RecordTooShort => write!(f, "Record too short"),

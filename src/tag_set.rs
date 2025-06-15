@@ -172,7 +172,6 @@ mod test {
 
     #[test]
     fn test_tags() {
-
         let public_key = {
             let mut csprng = OsRng;
             let secret_key = SecretKey::generate(&mut csprng);
@@ -246,8 +245,6 @@ mod test {
             OwnedTag::new(TagType(101), b"more testing").unwrap(),
         ];
 
-        let _owned_tag_set = OwnedTagSet::from_tags(
-            tags.iter().map(|t| &**t)
-        );
+        let _owned_tag_set = OwnedTagSet::from_tags(tags.iter().map(|t| &**t));
     }
 }

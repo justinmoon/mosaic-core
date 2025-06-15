@@ -203,6 +203,10 @@ impl FilterElement {
                 let len = wordlen * 8;
                 let mut i = 8;
                 while len > i + 3 {
+                    if self.0[i] == 0 && self.0[i + 1] == 0 {
+                        // type 0 is padding
+                        break;
+                    }
                     let taglen = self.0[i + 2] as usize;
                     for tag in record.tag_set() {
                         if tag.as_bytes() == &self.0[i..i + 3 + taglen] {
@@ -241,6 +245,10 @@ impl FilterElement {
                 let len = wordlen * 8;
                 let mut i = 8;
                 while len > i + 3 {
+                    if self.0[i] == 0 && self.0[i + 1] == 0 {
+                        // type 0 is padding
+                        break;
+                    }
                     let taglen = self.0[i + 2] as usize;
                     for tag in record.tag_set() {
                         if tag.as_bytes() == &self.0[i..i + 3 + taglen] {
@@ -445,9 +453,7 @@ impl<'a> Iterator for FeTagsIter<'a> {
             if bytelen < self.offset + 3 + datalen {
                 None
             } else {
-                match {
-                    Tag::from_bytes(&self.fe.0[self.offset..self.offset + 3 + datalen])
-                } {
+                match { Tag::from_bytes(&self.fe.0[self.offset..self.offset + 3 + datalen]) } {
                     Ok(tag) => {
                         self.offset += 3 + datalen;
                         Some(tag)
@@ -596,7 +602,7 @@ impl OwnedFilterElement {
         }
         let numcells = 1 + padded_len!(datalen) / 8;
 
-        let mut bytes: Vec<u8> = vec![0_u8; 8 + datalen];
+        let mut bytes: Vec<u8> = vec![0_u8; numcells * 8];
         bytes[0] = FilterElementType::INCLUDED_TAGS.0;
         #[allow(clippy::cast_possible_truncation)]
         {
@@ -688,7 +694,7 @@ impl OwnedFilterElement {
         }
         let numcells = 1 + padded_len!(datalen) / 8;
 
-        let mut bytes: Vec<u8> = vec![0_u8; 8 + datalen];
+        let mut bytes: Vec<u8> = vec![0_u8; numcells * 8];
         bytes[0] = FilterElementType::EXCLUDED_TAGS.0;
         #[allow(clippy::cast_possible_truncation)]
         {

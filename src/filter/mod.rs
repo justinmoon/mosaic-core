@@ -153,7 +153,10 @@ impl OwnedFilter {
     #[allow(clippy::missing_panics_doc)]
     #[allow(clippy::cast_possible_truncation)]
     pub fn new<T: AsRef<FilterElement>>(elements: &[T]) -> Result<OwnedFilter, Error> {
-        let len = 8 + elements.iter().map(|e| e.as_ref().as_bytes().len()).sum::<usize>();
+        let len = 8 + elements
+            .iter()
+            .map(|e| e.as_ref().as_bytes().len())
+            .sum::<usize>();
         let mut buffer = vec![0; len];
         buffer[0..2].copy_from_slice((len as u16).to_be_bytes().as_slice());
         let mut word = 1;
