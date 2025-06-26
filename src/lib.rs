@@ -21,7 +21,7 @@
 //! [`Record`]s are of various [`Kind`]s and have [`Timestamp`]s and
 //! [`RecordFlags`].
 //!
-//! [`Record`]s may have `Tag`s (TBD) of varying [`TagType`]s.
+//! [`Record`]s may have [`Tag`]s of varying [`TagType`]s.
 //!
 //! Every [`Record`] has an [`Id`] and an [`Address`] by which it can be
 //! referred. In some contexts a [`Record`] may be referred to by either,
@@ -30,8 +30,8 @@
 //!
 //! # Protocol
 //!
-//! Protocol `Messages` (TBD) are sent between client and server over some
-//! transport. Many client-initiated messages include a `Filter` (TBD)
+//! Protocol [`Message`]s are sent between client and server over some
+//! transport. Many client-initiated messages include a [`Filter`]
 
 #![warn(clippy::pedantic)]
 #![deny(
@@ -86,6 +86,9 @@ pub use kind::Kind;
 
 mod keys;
 pub use keys::{PublicKey, SecretKey};
+
+mod message;
+pub use message::{Message, MessageType, QueryClosedCode, QueryId, SubmissionResultCode};
 
 mod record;
 pub use record::{OwnedRecord, Record, RecordParts};

@@ -28,6 +28,9 @@ pub enum InnerError {
     /// Unsupported URI scheme
     BadScheme(String),
 
+    /// Data too long
+    DataTooLong,
+
     /// DHT put error
     DhtPutError,
 
@@ -66,6 +69,9 @@ pub enum InnerError {
 
     /// Invalid length
     InvalidLength,
+
+    /// Invalid message
+    InvalidMessage,
 
     /// Invalid printable data
     InvalidPrintable,
@@ -147,6 +153,7 @@ impl std::fmt::Display for InnerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             InnerError::BadScheme(s) => write!(f, "Unsupported URI scheme: {s}"),
+            InnerError::DataTooLong => write!(f, "Data too long"),
             InnerError::DhtPutError => write!(f, "DHT put error"),
             InnerError::DhtWasShutdown => write!(f, "DHT was shutdown"),
             InnerError::Ed25519(e) => write!(f, "ed25519 Error: {e}"),
@@ -163,6 +170,7 @@ impl std::fmt::Display for InnerError {
             ),
             InnerError::InvalidIdBytes => write!(f, "Invalid ID bytes"),
             InnerError::InvalidLength => write!(f, "Invalid length"),
+            InnerError::InvalidMessage => write!(f, "Invalid message"),
             InnerError::InvalidPrintable => write!(f, "Printable data is invalid"),
             InnerError::InvalidServerBootstrapString => write!(f, "Invalid ServerBootstrap String"),
             InnerError::InvalidTag => write!(f, "Invalid Tag"),
