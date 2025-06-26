@@ -453,7 +453,7 @@ impl<'a> Iterator for FeTagsIter<'a> {
             if bytelen < self.offset + 3 + datalen {
                 None
             } else {
-                match { Tag::from_bytes(&self.fe.0[self.offset..self.offset + 3 + datalen]) } {
+                match Tag::from_bytes(&self.fe.0[self.offset..self.offset + 3 + datalen]) {
                     Ok(tag) => {
                         self.offset += 3 + datalen;
                         Some(tag)
