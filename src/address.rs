@@ -28,6 +28,17 @@ impl Address {
         Ok(Address(bytes.to_owned()))
     }
 
+    /// Create from bytes
+    ///
+    /// # Safety
+    ///
+    /// Bytes must be a valid `Address`, otherwise undefined results can occur including
+    /// panics
+    #[must_use]
+    pub unsafe fn from_bytes_unchecked(bytes: &[u8; 48]) -> Address {
+        Address(bytes.to_owned())
+    }
+
     pub(crate) fn from_owned_bytes(bytes: [u8; 48]) -> Result<Address, Error> {
         Self::verify(&bytes)?;
         Ok(Address(bytes))

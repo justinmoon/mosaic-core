@@ -47,6 +47,17 @@ impl PublicKey {
         Ok(Self::from_verifying_key(&vk))
     }
 
+    /// Convert a `&[u8; 32]` into a `PublicKey`
+    ///
+    /// # Safety
+    ///
+    /// Bytes must be a valid `PublicKey`, otherwise undefined results can occur including
+    /// panics
+    #[must_use]
+    pub unsafe fn from_bytes_unchecked(bytes: &[u8; 32]) -> PublicKey {
+        PublicKey(bytes.to_owned())
+    }
+
     /// Convert a `PublicKey` into the human printable `mopub0` form.
     #[must_use]
     pub fn printable(&self) -> String {

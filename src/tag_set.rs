@@ -22,6 +22,8 @@ impl TagSet {
 
     /// Interpret a sequence of bytes as a `TagSet`.
     ///
+    /// Does not tolerate trailing bytes after the data in the `input`.
+    ///
     /// # Errors
     ///
     /// Returns an Err if the data is not valid.
@@ -43,7 +45,14 @@ impl TagSet {
         }
     }
 
-    pub(crate) fn from_bytes_unchecked(input: &[u8]) -> &TagSet {
+    /// Interpret a sequence of bytes as a `TagSet`.
+    ///
+    /// # Safety
+    ///
+    /// Bytes must be a valid `TagSet`, otherwise undefined results can occur including
+    /// panics
+    #[must_use]
+    pub unsafe fn from_bytes_unchecked(input: &[u8]) -> &TagSet {
         Self::from_inner(input)
     }
 

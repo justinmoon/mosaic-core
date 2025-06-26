@@ -38,6 +38,23 @@ impl Record {
     /// Interpret a sequence of bytes as a `Record`. Checks validity of the length
     /// only.
     ///
+    /// Tolerates trailing bytes after the data in the `input`.
+    ///
+    /// # Errors
+    ///
+    /// Errors if the input is not long enough, if the length is more than `1_048_576`
+    /// bytes, if either of the public keys is invalid, if the hash is invalid, if the
+    /// signature is invalid, if the timestamps are invalid, or if reserved flags are
+    /// set.
+    pub fn from_bytes(input: &[u8]) -> Result<&Record, Error> {
+        let record = unsafe { Self::from_bytes_unchecked(input)? };
+        record.verify()?;
+        Ok(record)
+    }
+
+    /// Interpret a sequence of bytes as a `Record`. Checks validity of the length
+    /// only.
+    ///
     /// # Errors
     ///
     /// Errors if the input is not long enough or if the length is more than `1_048_576`
@@ -45,10 +62,10 @@ impl Record {
     ///
     /// # Safety
     ///
-    /// Be sure the input is a valid Record. Consider calling `verify()` afterwards to
-    /// be sure.
+    /// Bytes must be a valid `Record`, otherwise undefined results can occur including
+    /// panics
     #[allow(clippy::missing_panics_doc)]
-    pub unsafe fn from_bytes(input: &[u8]) -> Result<&Record, Error> {
+    pub unsafe fn from_bytes_unchecked(input: &[u8]) -> Result<&Record, Error> {
         if input.len() < HEADER_LEN {
             return Err(InnerError::EndOfInput.into());
         }
@@ -266,28 +283,30 @@ impl Record {
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
     pub fn id(&self) -> Id {
-        Id::from_bytes(self.0[ID_RANGE].try_into().unwrap()).unwrap()
+        unsafe { Id::from_bytes_unchecked(self.0[ID_RANGE].try_into().unwrap()) }
     }
 
     /// Address
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
     pub fn address(&self) -> Address {
-        Address::from_bytes(self.0[ADDR_RANGE].try_into().unwrap()).unwrap()
+        unsafe { Address::from_bytes_unchecked(self.0[ADDR_RANGE].try_into().unwrap()) }
     }
 
     /// Signing `PublicKey`
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
     pub fn signing_public_key(&self) -> PublicKey {
-        PublicKey::from_bytes(self.0[SIGNING_KEY_RANGE].try_into().unwrap()).unwrap()
+        unsafe { PublicKey::from_bytes_unchecked(self.0[SIGNING_KEY_RANGE].try_into().unwrap()) }
     }
 
     /// Author `PublicKey`
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
     pub fn author_public_key(&self) -> PublicKey {
-        PublicKey::from_bytes(self.0[ADDR_AUTHOR_KEY_RANGE].try_into().unwrap()).unwrap()
+        unsafe {
+            PublicKey::from_bytes_unchecked(self.0[ADDR_AUTHOR_KEY_RANGE].try_into().unwrap())
+        }
     }
 
     /// Kind
@@ -315,7 +334,7 @@ impl Record {
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
     pub fn timestamp(&self) -> Timestamp {
-        Timestamp::from_bytes(self.0[TIMESTAMP_RANGE].try_into().unwrap()).unwrap()
+        unsafe { Timestamp::from_bytes_unchecked(self.0[TIMESTAMP_RANGE].try_into().unwrap()) }
     }
 
     /// `TagSet` length
@@ -335,7 +354,9 @@ impl Record {
     /// `TagSet`
     #[must_use]
     pub fn tag_set(&self) -> &TagSet {
-        TagSet::from_bytes_unchecked(&self.0[HEADER_LEN..HEADER_LEN + self.tag_set_len()])
+        unsafe {
+            TagSet::from_bytes_unchecked(&self.0[HEADER_LEN..HEADER_LEN + self.tag_set_len()])
+        }
     }
 
     /// Payload length
@@ -655,7 +676,7 @@ mod test {
 
         println!("{r1}");
 
-        let r2 = unsafe { Record::from_bytes(r1.as_bytes()).unwrap() };
+        let r2 = Record::from_bytes(r1.as_bytes()).unwrap();
 
         println!("r2 built");
 

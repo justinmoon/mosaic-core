@@ -185,21 +185,80 @@ pub struct Message(Vec<u8>);
 impl Message {
     /// Interpret bytes as a `Message`
     ///
+    /// Does not tolerates trailing bytes after the data in the `input`.
+    ///
     /// # Errors
     ///
     /// Returns an Err if the bytes contain invalid data
+    #[allow(clippy::missing_panics_doc)]
     pub fn from_bytes(bytes: Vec<u8>) -> Result<Message, Error> {
-        if bytes.len() < 8 || MessageType::from_u8(bytes[0]).is_none() {
+        if bytes.len() < 8 {
             Err(InnerError::InvalidMessage.into())
         } else {
             let len =
                 (bytes[1] as usize) + ((bytes[2] as usize) << 8) + ((bytes[3] as usize) << 16);
             if len == bytes.len() {
+                let t = MessageType::from_u8(bytes[0])
+                    .ok_or::<Error>(InnerError::InvalidMessage.into())?;
+                match t {
+                    MessageType::Get => {
+                        if (len - 8) % 48 != 0 {
+                            return Err(InnerError::InvalidMessage.into());
+                        }
+                        let mut i = 8;
+                        while i < bytes.len() {
+                            let _ = Reference::from_bytes(bytes[i..i + 48].try_into().unwrap())?;
+                            i += 48;
+                        }
+                    }
+                    MessageType::Query => {
+                        let _ = Filter::from_bytes(&bytes[8..])?;
+                    }
+                    MessageType::Subscribe => {
+                        let _ = Filter::from_bytes(&bytes[8..])?;
+                    }
+                    MessageType::Unsubscribe | MessageType::LocallyComplete => {
+                        if bytes.len() != 8 {
+                            return Err(InnerError::InvalidMessage.into());
+                        }
+                    }
+                    MessageType::Submission => {
+                        let _ = Record::from_bytes(&bytes[8..])?;
+                    }
+                    MessageType::Record => {
+                        let _ = Record::from_bytes(&bytes[8..])?;
+                    }
+                    MessageType::QueryClosed => {
+                        if bytes.len() != 8 {
+                            return Err(InnerError::InvalidMessage.into());
+                        }
+                        let _ = QueryClosedCode::from_u8(bytes[6])
+                            .ok_or::<Error>(InnerError::InvalidMessage.into())?;
+                    }
+                    MessageType::SubmissionResult => {
+                        if bytes.len() != 8 {
+                            return Err(InnerError::InvalidMessage.into());
+                        }
+                        let _ = SubmissionResultCode::from_u8(bytes[6])
+                            .ok_or::<Error>(InnerError::InvalidMessage.into())?;
+                    }
+                }
                 Ok(Message(bytes))
             } else {
                 Err(InnerError::InvalidMessage.into())
             }
         }
+    }
+
+    /// Interpret bytes as a `Message`
+    ///
+    /// # Safety
+    ///
+    /// Bytes must be a valid `Message`, otherwise undefined results can occur including
+    /// panics
+    #[must_use]
+    pub unsafe fn from_bytes_unchecked(bytes: Vec<u8>) -> Message {
+        Message(bytes)
     }
 
     /// get the `MessageType`
@@ -434,9 +493,7 @@ impl Message {
     #[must_use]
     pub fn filter(&self) -> Option<Result<&Filter, Error>> {
         match self.message_type() {
-            MessageType::Query | MessageType::Subscribe => {
-                Some(unsafe { Filter::from_bytes(&self.0[8..]) })
-            }
+            MessageType::Query | MessageType::Subscribe => Some(Filter::from_bytes(&self.0[8..])),
             _ => None,
         }
     }
@@ -447,9 +504,7 @@ impl Message {
     #[must_use]
     pub fn record(&self) -> Option<Result<&Record, Error>> {
         match self.message_type() {
-            MessageType::Submission | MessageType::Record => {
-                Some(unsafe { Record::from_bytes(&self.0[8..]) })
-            }
+            MessageType::Submission | MessageType::Record => Some(Record::from_bytes(&self.0[8..])),
             _ => None,
         }
     }

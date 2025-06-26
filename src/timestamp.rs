@@ -19,6 +19,7 @@ pub const MAX_NANOSECONDS: i64 = i64::MAX;
 /// leap seconds!).
 ///
 // SAFETY: It must be impossible to create a Timestamp with a negative internal value.
+//         the first bit must be 0
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Timestamp(i64);
 
@@ -125,6 +126,18 @@ impl Timestamp {
         } else {
             Ok(Timestamp(n))
         }
+    }
+
+    /// Create from an 8-byte big-endian slice
+    ///
+    /// # Safety
+    ///
+    /// Bytes must be a valid `Timestamp`, otherwise undefined results can occur including
+    /// panics
+    #[must_use]
+    pub unsafe fn from_bytes_unchecked(slice: [u8; 8]) -> Timestamp {
+        let n: i64 = i64::from_be_bytes(slice);
+        Timestamp(n)
     }
 
     /// This gives you a sequence of bytes, still in big endian, that

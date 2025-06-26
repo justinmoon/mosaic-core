@@ -23,9 +23,16 @@ impl Reference {
         Ok(Reference(bytes.to_owned()))
     }
 
-    //pub(crate) fn from_bytes_no_verify(bytes: &[u8; 48]) -> Reference {
-    //    Reference(bytes.to_owned())
-    //}
+    /// Create from bytes
+    ///
+    /// # Safety
+    ///
+    /// Bytes must be a valid `Reference`, otherwise undefined results can occur including
+    /// panics
+    #[must_use]
+    pub unsafe fn from_bytes_unchecked(bytes: &[u8; 48]) -> Reference {
+        Reference(bytes.to_owned())
+    }
 
     /// Convert a `Reference` into the human printable `moref0` form.
     #[must_use]

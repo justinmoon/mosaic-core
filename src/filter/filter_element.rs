@@ -103,16 +103,83 @@ impl FilterElement {
 
     /// Interpret bytes as a `FilterElement`
     ///
+    /// Tolerates trailing bytes after the data in the `input`.
+    ///
     /// # Errors
     ///
     /// Errors if the input isn't long enough.
+    #[allow(clippy::missing_panics_doc)]
+    pub fn from_bytes(input: &[u8]) -> Result<&FilterElement, Error> {
+        let len = Self::verify_length(input)?;
+        let fe = Self::from_inner(&input[0..len]);
+
+        match fe.get_type() {
+            FilterElementType::AUTHOR_KEYS | FilterElementType::SIGNING_KEYS => {
+                let words = (len / 8) - 1;
+                if words % 4 != 0 {
+                    return Err(InnerError::InvalidFilterElement.into());
+                }
+                let mut i = 8;
+                while i < len {
+                    let _ = PublicKey::from_bytes(input[i..i + 32].try_into().unwrap())?;
+                    i += 32;
+                }
+            }
+            FilterElementType::KINDS => {
+                if len % 8 != 0 {
+                    return Err(InnerError::InvalidFilterElement.into());
+                }
+            }
+            FilterElementType::TIMESTAMPS => {
+                if len % 8 != 0 {
+                    return Err(InnerError::InvalidFilterElement.into());
+                }
+                let mut i = 8;
+                while i < len {
+                    let _ = Timestamp::from_bytes(input[i..i + 8].try_into().unwrap())?;
+                    i += 8;
+                }
+            }
+            FilterElementType::INCLUDED_TAGS | FilterElementType::EXCLUDED_TAGS => {
+                let mut i = 8;
+                while i < len {
+                    let t = Tag::from_bytes(&input[i..])?;
+                    i += 3 + t.as_bytes().len();
+                }
+            }
+            FilterElementType::SINCE
+            | FilterElementType::UNTIL
+            | FilterElementType::RECEIVED_SINCE
+            | FilterElementType::RECEIVED_UNTIL => {
+                if len != 16 {
+                    return Err(InnerError::InvalidFilterElement.into());
+                }
+                let _ = Timestamp::from_bytes(input[8..16].try_into().unwrap())?;
+            }
+            FilterElementType::EXCLUDE => {
+                let mut i = 8;
+                while i < len {
+                    if input[i] & (1 << 7) != 0 {
+                        return Err(InnerError::InvalidFilterElement.into());
+                    }
+                    i += 32;
+                }
+            }
+            FilterElementType(u) => return Err(InnerError::UnknownFilterElement(u).into()),
+        }
+
+        Ok(fe)
+    }
+
+    /// Interpret bytes as a `FilterElement`
     ///
     /// # Safety
     ///
-    /// Be sure the input is a valid `FilterElement`. We don't validate the data.
-    pub unsafe fn from_bytes(input: &[u8]) -> Result<&FilterElement, Error> {
-        let len = Self::verify_length(input)?;
-        Ok(Self::from_inner(&input[0..len]))
+    /// Bytes must be a valid `FilterElement`, otherwise undefined results can occur including
+    /// panics
+    #[must_use]
+    pub unsafe fn from_bytes_unchecked(input: &[u8]) -> &FilterElement {
+        Self::from_inner(input)
     }
 
     /// Copy to an allocated owned data type

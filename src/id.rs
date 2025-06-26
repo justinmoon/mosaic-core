@@ -29,6 +29,17 @@ impl Id {
         }
     }
 
+    /// Create from bytes
+    ///
+    /// # Safety
+    ///
+    /// Bytes must be a valid `Id`, otherwise undefined results can occur including
+    /// panics
+    #[must_use]
+    pub unsafe fn from_bytes_unchecked(bytes: &[u8; 48]) -> Id {
+        Id(bytes.to_owned())
+    }
+
     pub(crate) fn from_owned_bytes(bytes: [u8; 48]) -> Result<Id, Error> {
         if bytes[0] & (1 << 7) != 0 {
             Err(InnerError::InvalidIdBytes.into())

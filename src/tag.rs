@@ -76,6 +76,8 @@ impl Tag {
 
     /// Interpret a sequence of bytes as a `Tag`. Checks validity of the length.
     ///
+    /// Tolerates trailing bytes after the data in the `input`.
+    ///
     /// # Errors
     ///
     /// Errors if the input isn't long enough.

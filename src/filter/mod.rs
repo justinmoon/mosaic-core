@@ -21,17 +21,15 @@ impl Filter {
         unsafe { &mut *(std::ptr::from_mut::<[u8]>(inner) as *mut Filter) }
     }
 
-    /// Interpret a sequence of bytes as a `Filter`. Checks validity of the length.
+    /// Interpret a sequence of bytes as a `Filter`.
+    ///
+    /// Tolerates trailing bytes after the data in the `input`.
     ///
     /// # Errors
     ///
-    /// Errors if the input isn't long enough.
-    ///
-    /// # Safety
-    ///
-    /// Be sure the input is a valid Filter.
+    /// Errors if the input isn't long enough or the data is invalid in any way.
     #[allow(clippy::missing_panics_doc)]
-    pub unsafe fn from_bytes(input: &[u8]) -> Result<&Filter, Error> {
+    pub fn from_bytes(input: &[u8]) -> Result<&Filter, Error> {
         if input.len() < 8 {
             return Err(InnerError::EndOfInput.into());
         }
@@ -42,7 +40,25 @@ impl Filter {
         if input.len() < len {
             return Err(InnerError::EndOfInput.into());
         }
+
+        let mut i = 8;
+        while i < input.len() {
+            let fe = FilterElement::from_bytes(&input[i..])?;
+            i += fe.as_bytes().len();
+        }
+
         Ok(Self::from_inner(&input[0..len]))
+    }
+
+    /// Interpret a sequence of bytes as a `Filter`. Checks validity of the length.
+    ///
+    /// # Safety
+    ///
+    /// Bytes must be a valid `Filter`, otherwise undefined results can occur including
+    /// panics
+    #[must_use]
+    pub unsafe fn from_bytes_unchecked(input: &[u8]) -> &Filter {
+        Self::from_inner(input)
     }
 
     /// Copy to an allocated owned data type
@@ -126,12 +142,7 @@ impl<'a> Iterator for FilterElementIter<'a> {
         if full_len < offset + 8 {
             None
         } else {
-            let fe = unsafe {
-                match FilterElement::from_bytes(&self.bytes[offset..]) {
-                    Err(_) => return None,
-                    Ok(fe) => fe,
-                }
-            };
+            let fe = unsafe { FilterElement::from_bytes_unchecked(&self.bytes[offset..]) };
             self.offset += fe.as_bytes().len();
             Some(fe)
         }

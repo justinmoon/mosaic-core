@@ -61,6 +61,9 @@ pub enum InnerError {
     /// Invalid Address bytes
     InvalidAddressBytes,
 
+    /// Invalid filter element
+    InvalidFilterElement,
+
     /// Invalid filter element for function
     InvalidFilterElementForFunction,
 
@@ -164,6 +167,7 @@ impl std::fmt::Display for InnerError {
             InnerError::KeyLength => write!(f, "Key data length is not 32 bytes"),
             InnerError::General(s) => write!(f, "General Error: {s}"),
             InnerError::InvalidAddressBytes => write!(f, "Invalid Address bytes"),
+            InnerError::InvalidFilterElement => write!(f, "Invalid filter element"),
             InnerError::InvalidFilterElementForFunction => write!(
                 f,
                 "Invalid filter element for function (received dates not available in Record)"
