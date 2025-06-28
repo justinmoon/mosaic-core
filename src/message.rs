@@ -131,6 +131,9 @@ pub enum SubmissionResultCode {
     /// Record is a duplicate
     Duplicate = 0x2,
 
+    /// Ephemeral record had No consumers
+    NoConsumers = 0x3,
+
     /// Record is invalid
     RejectedInvalid = 0x10,
 
@@ -163,6 +166,7 @@ impl SubmissionResultCode {
         match u {
             0x1 => Some(SubmissionResultCode::Ok),
             0x2 => Some(SubmissionResultCode::Duplicate),
+            0x3 => Some(SubmissionResultCode::NoConsumers),
             0x10 => Some(SubmissionResultCode::RejectedInvalid),
             0x12 => Some(SubmissionResultCode::RejectedTooFast),
             0x13 => Some(SubmissionResultCode::RejectedTempBanned),
