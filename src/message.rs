@@ -265,6 +265,12 @@ impl Message {
         Message(bytes)
     }
 
+    /// As bytes
+    #[must_use]
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.0
+    }
+
     /// get the `MessageType`
     #[must_use]
     #[allow(clippy::missing_panics_doc)]
