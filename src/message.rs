@@ -485,19 +485,17 @@ impl Message {
     /// Returns an error if an internal Reference is not valid.
     #[must_use]
     #[allow(clippy::missing_panics_doc)]
-    pub fn references(&self) -> Option<Result<Vec<Reference>, Error>> {
+    pub fn references(&self) -> Option<Vec<Reference>> {
         if self.message_type() == MessageType::Get {
             let mut references: Vec<Reference> = Vec::with_capacity((self.len() - 8) / 48);
             let mut i = 8;
             while i < self.len() {
-                let result = Reference::from_bytes(self.0[i..i + 48].try_into().unwrap());
-                match result {
-                    Ok(r) => references.push(r),
-                    Err(e) => return Some(Err(e)),
-                }
+                let reference =
+                    Reference::from_bytes(self.0[i..i + 48].try_into().unwrap()).unwrap();
+                references.push(reference);
                 i += 48;
             }
-            Some(Ok(references))
+            Some(references)
         } else {
             None
         }
@@ -519,9 +517,12 @@ impl Message {
     ///
     /// Returns an error if the internal Filter is not valid.
     #[must_use]
-    pub fn filter(&self) -> Option<Result<&Filter, Error>> {
+    #[allow(clippy::missing_panics_doc)]
+    pub fn filter(&self) -> Option<&Filter> {
         match self.message_type() {
-            MessageType::Query | MessageType::Subscribe => Some(Filter::from_bytes(&self.0[8..])),
+            MessageType::Query | MessageType::Subscribe => {
+                Some(Filter::from_bytes(&self.0[8..]).unwrap())
+            }
             _ => None,
         }
     }
@@ -530,9 +531,12 @@ impl Message {
     ///
     /// Returns an error if the internal Record is not valid.
     #[must_use]
-    pub fn record(&self) -> Option<Result<&Record, Error>> {
+    #[allow(clippy::missing_panics_doc)]
+    pub fn record(&self) -> Option<&Record> {
         match self.message_type() {
-            MessageType::Submission | MessageType::Record => Some(Record::from_bytes(&self.0[8..])),
+            MessageType::Submission | MessageType::Record => {
+                Some(Record::from_bytes(&self.0[8..]).unwrap())
+            }
             _ => None,
         }
     }
