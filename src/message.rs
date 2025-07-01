@@ -31,6 +31,9 @@ pub enum MessageType {
 
     /// Server response indicating the status of a submission
     SubmissionResult = 0x83,
+
+    /// Unrecognized
+    Unrecognized = 0xF0,
 }
 
 impl MessageType {
@@ -47,6 +50,7 @@ impl MessageType {
             0x81 => Some(MessageType::LocallyComplete),
             0x82 => Some(MessageType::QueryClosed),
             0x83 => Some(MessageType::SubmissionResult),
+            0xF0 => Some(MessageType::Unrecognized),
             _ => None,
         }
     }
@@ -221,7 +225,9 @@ impl Message {
                     MessageType::Subscribe => {
                         let _ = Filter::from_bytes(&bytes[8..])?;
                     }
-                    MessageType::Unsubscribe | MessageType::LocallyComplete => {
+                    MessageType::Unsubscribe
+                    | MessageType::LocallyComplete
+                    | MessageType::Unrecognized => {
                         if bytes.len() != 8 {
                             return Err(InnerError::InvalidMessage.into());
                         }
@@ -441,6 +447,18 @@ impl Message {
         bytes[1..4].copy_from_slice(&len_bytes.as_slice()[..3]);
         bytes[4] = code as u8;
         bytes[8..].copy_from_slice(&id.as_bytes()[..32]);
+        Message(bytes)
+    }
+
+    /// Create a new Unrecognized Message
+    #[must_use]
+    pub fn new_unrecognized() -> Message {
+        let len = 8;
+        let mut bytes = vec![0_u8; len];
+        bytes[0] = MessageType::Unrecognized as u8;
+        #[allow(clippy::cast_possible_truncation)]
+        let len_bytes = (len as u32).to_le_bytes();
+        bytes[1..4].copy_from_slice(&len_bytes.as_slice()[..3]);
         Message(bytes)
     }
 
