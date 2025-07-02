@@ -246,11 +246,14 @@ impl Message {
                             .ok_or::<Error>(InnerError::InvalidMessage.into())?;
                     }
                     MessageType::SubmissionResult => {
-                        if bytes.len() != 8 {
+                        if bytes.len() != 40 {
                             return Err(InnerError::InvalidMessage.into());
                         }
-                        let _ = SubmissionResultCode::from_u8(bytes[6])
+                        let _ = SubmissionResultCode::from_u8(bytes[4])
                             .ok_or::<Error>(InnerError::InvalidMessage.into())?;
+                        if bytes[8] & (1 << 7) != 0 {
+                            return Err(InnerError::InvalidMessage.into());
+                        }
                     }
                 }
                 Ok(Message(bytes))
@@ -565,7 +568,7 @@ impl Message {
     #[must_use]
     pub fn submission_result_code(&self) -> Option<SubmissionResultCode> {
         if self.message_type() == MessageType::SubmissionResult {
-            SubmissionResultCode::from_u8(self.0[6])
+            SubmissionResultCode::from_u8(self.0[4])
         } else {
             None
         }
