@@ -144,7 +144,7 @@ impl FilterElement {
                 let mut i = 8;
                 while i < len {
                     let t = Tag::from_bytes(&input[i..])?;
-                    i += 3 + t.as_bytes().len();
+                    i += t.as_bytes().len();
                 }
             }
             FilterElementType::SINCE
@@ -269,18 +269,21 @@ impl FilterElement {
                 let wordlen = self.0[1] as usize;
                 let len = wordlen * 8;
                 let mut i = 8;
-                while len > i + 3 {
-                    if self.0[i] == 0 && self.0[i + 1] == 0 {
-                        // type 0 is padding
-                        break;
-                    }
-                    let taglen = self.0[i + 2] as usize;
-                    for tag in record.tag_set() {
-                        if tag.as_bytes() == &self.0[i..i + 3 + taglen] {
-                            return Ok(true);
+                while len > i + 4 {
+                    match Tag::from_bytes(&self.0[i..]) {
+                        Ok(filter_tag) => {
+                            for tag in record.tag_set() {
+                                if tag == filter_tag {
+                                    return Ok(true);
+                                }
+                            }
+                            i += filter_tag.as_bytes().len();
+                        },
+                        Err(e) => match e.inner {
+                            InnerError::Padding => break,
+                            _ => return Err(e),
                         }
                     }
-                    i += 3 + taglen;
                 }
                 Ok(false)
             }
@@ -311,18 +314,21 @@ impl FilterElement {
                 let wordlen = self.0[1] as usize;
                 let len = wordlen * 8;
                 let mut i = 8;
-                while len > i + 3 {
-                    if self.0[i] == 0 && self.0[i + 1] == 0 {
-                        // type 0 is padding
-                        break;
-                    }
-                    let taglen = self.0[i + 2] as usize;
-                    for tag in record.tag_set() {
-                        if tag.as_bytes() == &self.0[i..i + 3 + taglen] {
-                            return Ok(false);
+                while len > i + 4 {
+                    match Tag::from_bytes(&self.0[i..]) {
+                        Ok(filter_tag) => {
+                            for tag in record.tag_set() {
+                                if tag == filter_tag {
+                                    return Ok(false);
+                                }
+                            }
+                            i += filter_tag.as_bytes().len();
+                        },
+                        Err(e) => match e.inner {
+                            InnerError::Padding => break,
+                            _ => return Err(e),
                         }
                     }
-                    i += 3 + taglen;
                 }
                 Ok(true)
             }
@@ -516,17 +522,12 @@ impl<'a> Iterator for FeTagsIter<'a> {
         if bytelen < self.offset + 3 {
             None
         } else {
-            let datalen = self.fe.0[self.offset + 2] as usize;
-            if bytelen < self.offset + 3 + datalen {
-                None
-            } else {
-                match Tag::from_bytes(&self.fe.0[self.offset..self.offset + 3 + datalen]) {
-                    Ok(tag) => {
-                        self.offset += 3 + datalen;
-                        Some(tag)
-                    }
-                    Err(_) => None,
+            match Tag::from_bytes(&self.fe.0[self.offset..]) {
+                Ok(tag) => {
+                    self.offset += tag.as_bytes().len();
+                    Some(tag)
                 }
+                Err(_) => None,
             }
         }
     }

@@ -55,9 +55,9 @@ impl TagType {
 /// A single `Tag`, unsized (borrowed)
 ///
 /// See also `OwnedTag` for the owned variant.
-//    0..2  Type
-//    2..3  Length
-//    3..   Value
+//    0..2  Length (little-endian)
+//    2..4  Type   (little-endian)
+//    4..   Value
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct Tag([u8]);
 
@@ -80,23 +80,20 @@ impl Tag {
     ///
     /// # Errors
     ///
-    /// Errors if the input isn't long enough.
+    /// Errors if the input isn't long enough or the region is padding.
     #[allow(clippy::missing_panics_doc)]
     pub fn from_bytes(input: &[u8]) -> Result<&Tag, Error> {
-        if input.len() < 3 {
+        if input.len() < 4 {
             return Err(InnerError::EndOfInput.into());
         }
         if input[0] == 0 && input[1] == 0 {
             return Err(InnerError::Padding.into());
         }
-        let datalen = input[2] as usize;
-        if datalen > 253 {
-            return Err(InnerError::InvalidTag.into());
-        }
-        if input.len() < 3 + datalen {
+        let datalen = u16::from_le_bytes(input[0..2].try_into().unwrap()) as usize;
+        if input.len() < datalen {
             return Err(InnerError::EndOfInput.into());
         }
-        Ok(Self::from_inner(&input[0..3 + datalen]))
+        Ok(Self::from_inner(&input[0..datalen]))
     }
 
     /// Copy to an allocated owned data type
@@ -114,14 +111,14 @@ impl Tag {
     /// As data bytes
     #[must_use]
     pub fn data_bytes(&self) -> &[u8] {
-        &self.0[3..]
+        &self.0[4..]
     }
 
     /// Get the type of tag this is
     #[must_use]
     #[allow(clippy::missing_panics_doc)]
     pub fn get_type(&self) -> TagType {
-        TagType(u16::from_le_bytes(self.0[0..2].try_into().unwrap()))
+        TagType(u16::from_le_bytes(self.0[2..4].try_into().unwrap()))
     }
 
     /// Get the public key (for types that have one)
@@ -223,11 +220,9 @@ impl Tag {
         if buffer.len() < LEN {
             return Err(InnerError::EndOfOutput.into());
         }
-        buffer[0..2].copy_from_slice(TagType::NOTIFY_PUBLIC_KEY.0.to_le_bytes().as_slice());
-        #[allow(clippy::cast_possible_truncation)]
-        {
-            buffer[2] = (LEN - 3) as u8;
-        }
+        buffer[0..2].copy_from_slice((LEN as u16).to_le_bytes().as_slice());
+        buffer[2..4].copy_from_slice(TagType::NOTIFY_PUBLIC_KEY.0.to_le_bytes().as_slice());
+        buffer[4..8].fill(0);
         buffer[8..LEN].copy_from_slice(public_key.as_bytes().as_slice());
         Ok(Tag::from_inner(&buffer[..LEN]))
     }
@@ -246,12 +241,9 @@ impl Tag {
         if buffer.len() < LEN {
             return Err(InnerError::EndOfOutput.into());
         }
-        buffer[0..2].copy_from_slice(TagType::REPLY.0.to_le_bytes().as_slice());
-        #[allow(clippy::cast_possible_truncation)]
-        {
-            buffer[2] = (LEN - 3) as u8;
-        }
-        buffer[3..8].fill(0);
+        buffer[0..2].copy_from_slice((LEN as u16).to_le_bytes().as_slice());
+        buffer[2..4].copy_from_slice(TagType::REPLY.0.to_le_bytes().as_slice());
+        buffer[4..8].fill(0);
         buffer[8..16].copy_from_slice(kind.to_bytes().as_slice());
         buffer[16..LEN].copy_from_slice(refer.as_bytes().as_slice());
         Ok(Tag::from_inner(&buffer[..LEN]))
@@ -271,12 +263,9 @@ impl Tag {
         if buffer.len() < LEN {
             return Err(InnerError::EndOfOutput.into());
         }
-        buffer[0..2].copy_from_slice(TagType::ROOT.0.to_le_bytes().as_slice());
-        #[allow(clippy::cast_possible_truncation)]
-        {
-            buffer[2] = (LEN - 3) as u8;
-        }
-        buffer[3..8].fill(0);
+        buffer[0..2].copy_from_slice((LEN as u16).to_le_bytes().as_slice());
+        buffer[2..4].copy_from_slice(TagType::ROOT.0.to_le_bytes().as_slice());
+        buffer[4..8].fill(0);
         buffer[8..16].copy_from_slice(kind.to_bytes().as_slice());
         buffer[16..LEN].copy_from_slice(refer.as_bytes().as_slice());
         Ok(Tag::from_inner(&buffer[..LEN]))
@@ -292,11 +281,9 @@ impl Tag {
         if buffer.len() < LEN {
             return Err(InnerError::EndOfOutput.into());
         }
-        buffer[0..2].copy_from_slice(TagType::NOSTR_SISTER.0.to_le_bytes().as_slice());
-        #[allow(clippy::cast_possible_truncation)]
-        {
-            buffer[2] = (LEN - 3) as u8;
-        }
+        buffer[0..2].copy_from_slice((LEN as u16).to_le_bytes().as_slice());
+        buffer[2..4].copy_from_slice(TagType::NOSTR_SISTER.0.to_le_bytes().as_slice());
+        buffer[4..8].fill(0);
         buffer[8..LEN].copy_from_slice(id.as_slice());
         Ok(Tag::from_inner(&buffer[..LEN]))
     }
@@ -314,11 +301,9 @@ impl Tag {
         if buffer.len() < LEN {
             return Err(InnerError::EndOfOutput.into());
         }
-        buffer[0..2].copy_from_slice(TagType::SUBKEY.0.to_le_bytes().as_slice());
-        #[allow(clippy::cast_possible_truncation)]
-        {
-            buffer[2] = (LEN - 3) as u8;
-        }
+        buffer[0..2].copy_from_slice((LEN as u16).to_le_bytes().as_slice());
+        buffer[2..4].copy_from_slice(TagType::SUBKEY.0.to_le_bytes().as_slice());
+        buffer[4..8].fill(0);
         buffer[8..LEN].copy_from_slice(public_key.as_bytes().as_slice());
         Ok(Tag::from_inner(&buffer[..LEN]))
     }
@@ -337,16 +322,13 @@ impl Tag {
         if buffer.len() < LEN {
             return Err(InnerError::EndOfOutput.into());
         }
-        buffer[0..2].copy_from_slice(
+        buffer[0..2].copy_from_slice((LEN as u16).to_le_bytes().as_slice());
+        buffer[2..4].copy_from_slice(
             TagType::CONTENT_SEGMENT_USER_MENTION
                 .0
                 .to_le_bytes()
                 .as_slice(),
         );
-        #[allow(clippy::cast_possible_truncation)]
-        {
-            buffer[2] = (LEN - 3) as u8;
-        }
         buffer[4..8].copy_from_slice(offset.to_le_bytes().as_slice());
         buffer[8..LEN].copy_from_slice(public_key.as_bytes().as_slice());
         Ok(Tag::from_inner(&buffer[..LEN]))
@@ -366,16 +348,13 @@ impl Tag {
         if buffer.len() < LEN {
             return Err(InnerError::EndOfOutput.into());
         }
-        buffer[0..2].copy_from_slice(
+        buffer[0..2].copy_from_slice((LEN as u16).to_le_bytes().as_slice());
+        buffer[2..4].copy_from_slice(
             TagType::CONTENT_SEGMENT_SERVER_MENTION
                 .0
                 .to_le_bytes()
                 .as_slice(),
         );
-        #[allow(clippy::cast_possible_truncation)]
-        {
-            buffer[2] = (LEN - 3) as u8;
-        }
         buffer[4..8].copy_from_slice(offset.to_le_bytes().as_slice());
         buffer[8..LEN].copy_from_slice(public_key.as_bytes().as_slice());
         Ok(Tag::from_inner(&buffer[..LEN]))
@@ -396,11 +375,8 @@ impl Tag {
         if buffer.len() < LEN {
             return Err(InnerError::EndOfOutput.into());
         }
-        buffer[0..2].copy_from_slice(TagType::CONTENT_SEGMENT_QUOTE.0.to_le_bytes().as_slice());
-        #[allow(clippy::cast_possible_truncation)]
-        {
-            buffer[2] = (LEN - 3) as u8;
-        }
+        buffer[0..2].copy_from_slice((LEN as u16).to_le_bytes().as_slice());
+        buffer[2..4].copy_from_slice(TagType::CONTENT_SEGMENT_QUOTE.0.to_le_bytes().as_slice());
         buffer[4..8].copy_from_slice(offset.to_le_bytes().as_slice());
         buffer[8..16].copy_from_slice(kind.to_bytes().as_slice());
         buffer[16..LEN].copy_from_slice(refer.as_bytes().as_slice());
@@ -421,11 +397,8 @@ impl Tag {
         if buffer.len() < len {
             return Err(InnerError::EndOfOutput.into());
         }
-        buffer[0..2].copy_from_slice(TagType::CONTENT_SEGMENT_URL.0.to_le_bytes().as_slice());
-        #[allow(clippy::cast_possible_truncation)]
-        {
-            buffer[2] = (len - 3) as u8;
-        }
+        buffer[0..2].copy_from_slice((len as u16).to_le_bytes().as_slice());
+        buffer[2..4].copy_from_slice(TagType::CONTENT_SEGMENT_URL.0.to_le_bytes().as_slice());
         buffer[4..8].copy_from_slice(offset.to_le_bytes().as_slice());
         buffer[8..len].copy_from_slice(url.as_bytes());
         Ok(Tag::from_inner(&buffer[..len]))
@@ -445,11 +418,8 @@ impl Tag {
         if buffer.len() < len {
             return Err(InnerError::EndOfOutput.into());
         }
-        buffer[0..2].copy_from_slice(TagType::CONTENT_SEGMENT_IMAGE.0.to_le_bytes().as_slice());
-        #[allow(clippy::cast_possible_truncation)]
-        {
-            buffer[2] = (len - 3) as u8;
-        }
+        buffer[0..2].copy_from_slice((len as u16).to_le_bytes().as_slice());
+        buffer[2..4].copy_from_slice(TagType::CONTENT_SEGMENT_IMAGE.0.to_le_bytes().as_slice());
         buffer[4..8].copy_from_slice(offset.to_le_bytes().as_slice());
         buffer[8..len].copy_from_slice(url.as_bytes());
         Ok(Tag::from_inner(&buffer[..len]))
@@ -469,11 +439,8 @@ impl Tag {
         if buffer.len() < len {
             return Err(InnerError::EndOfOutput.into());
         }
-        buffer[0..2].copy_from_slice(TagType::CONTENT_SEGMENT_VIDEO.0.to_le_bytes().as_slice());
-        #[allow(clippy::cast_possible_truncation)]
-        {
-            buffer[2] = (len - 3) as u8;
-        }
+        buffer[0..2].copy_from_slice((len as u16).to_le_bytes().as_slice());
+        buffer[2..4].copy_from_slice(TagType::CONTENT_SEGMENT_VIDEO.0.to_le_bytes().as_slice());
         buffer[4..8].copy_from_slice(offset.to_le_bytes().as_slice());
         buffer[8..len].copy_from_slice(url.as_bytes());
         Ok(Tag::from_inner(&buffer[..len]))
@@ -491,17 +458,17 @@ impl OwnedTag {
     ///
     /// # Errors
     ///
-    /// Errors if the value is too long (max is 253 bytes)
+    /// Errors if the value is too long (max is 65532 bytes)
     #[allow(clippy::missing_panics_doc)]
     pub fn new<T: AsRef<[u8]>>(ty: TagType, value: &T) -> Result<OwnedTag, Error> {
-        let datalen = value.as_ref().len();
-        if datalen > 253 {
+        let len = value.as_ref().len() + 4;
+        if len > 65536 {
             return Err(InnerError::TagTooLong.into());
         }
-        let mut buffer = vec![0; 3 + datalen];
-        buffer[0..2].copy_from_slice(ty.into_u16().to_be_bytes().as_slice());
-        buffer[2] = u8::try_from(datalen).unwrap();
-        buffer[3..].copy_from_slice(value.as_ref());
+        let mut buffer = vec![0; len];
+        buffer[0..2].copy_from_slice((len as u16).to_le_bytes().as_slice());
+        buffer[2..4].copy_from_slice(ty.into_u16().to_be_bytes().as_slice());
+        buffer[4..].copy_from_slice(value.as_ref());
         Ok(OwnedTag(buffer))
     }
 

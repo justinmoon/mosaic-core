@@ -214,14 +214,16 @@ mod test {
         use crate::TagType;
 
         let example: Vec<u8> = vec![
+            8, 0, // length
             1, 0, // type 1,
-            4, // data length
             10, 9, 8, 7, // data
+
+            10, 0, // length
             2, 0, // type 2
-            6, // data length
             1, 2, 3, 4, 5, 6, // data
+
+            7, 0, // length
             3, 1, // type
-            3, // data length
             3, 4, 5, // data
         ];
 
