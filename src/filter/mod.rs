@@ -169,7 +169,7 @@ impl OwnedFilter {
             .map(|e| e.as_ref().as_bytes().len())
             .sum::<usize>();
         let mut buffer = vec![0; len];
-        buffer[0..2].copy_from_slice((len as u16).to_be_bytes().as_slice());
+        buffer[0..2].copy_from_slice((len as u16).to_le_bytes().as_slice());
         let mut word = 1;
         for element in elements {
             let elen = element.as_ref().as_bytes().len();
