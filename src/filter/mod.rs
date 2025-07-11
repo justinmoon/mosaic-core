@@ -260,4 +260,27 @@ mod test {
 
         assert_eq!(filter.matches(&record).unwrap(), false);
     }
+
+    #[test]
+    fn test_filter_elements_iter() {
+        let filter = OwnedFilter::new(&[
+            &OwnedFilterElement::new_kinds(&[
+                Kind::from_bytes([0, 0, 0, 0, 99, 0, 1, 14]),
+                Kind::from_bytes([0, 0, 0, 0, 99, 0, 2, 14]),
+                Kind::from_bytes([0, 0, 0, 0, 99, 0, 3, 28]),
+            ])
+            .unwrap(),
+            &OwnedFilterElement::new_since(
+                Timestamp::from_nanoseconds(1749511490000000000).unwrap(),
+            ),
+            &OwnedFilterElement::new_until(
+                Timestamp::from_nanoseconds(1749511497777700000).unwrap(),
+            ),
+        ])
+        .unwrap();
+
+        eprintln!("{:?}", filter.as_bytes());
+
+        assert_eq!(filter.elements().count(), 3);
+    }
 }

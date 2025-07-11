@@ -148,7 +148,7 @@ impl FilterElement {
                         Err(e) => match e.inner {
                             InnerError::Padding => break,
                             _ => return Err(e),
-                        }
+                        },
                     };
                     i += t.as_bytes().len();
                 }
@@ -179,13 +179,16 @@ impl FilterElement {
 
     /// Interpret bytes as a `FilterElement`
     ///
+    /// Tolerates trailing bytes after the data in the `input`.
+    ///
     /// # Safety
     ///
     /// Bytes must be a valid `FilterElement`, otherwise undefined results can occur including
     /// panics
     #[must_use]
     pub unsafe fn from_bytes_unchecked(input: &[u8]) -> &FilterElement {
-        Self::from_inner(input)
+        let len = Self::verify_length(input).unwrap();
+        Self::from_inner(&input[0..len])
     }
 
     /// Copy to an allocated owned data type
@@ -284,11 +287,11 @@ impl FilterElement {
                                 }
                             }
                             i += filter_tag.as_bytes().len();
-                        },
+                        }
                         Err(e) => match e.inner {
                             InnerError::Padding => break,
                             _ => return Err(e),
-                        }
+                        },
                     }
                 }
                 Ok(false)
@@ -329,11 +332,11 @@ impl FilterElement {
                                 }
                             }
                             i += filter_tag.as_bytes().len();
-                        },
+                        }
                         Err(e) => match e.inner {
                             InnerError::Padding => break,
                             _ => return Err(e),
-                        }
+                        },
                     }
                 }
                 Ok(true)

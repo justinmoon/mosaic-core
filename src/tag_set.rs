@@ -217,11 +217,9 @@ mod test {
             8, 0, // length
             1, 0, // type 1,
             10, 9, 8, 7, // data
-
             10, 0, // length
             2, 0, // type 2
             1, 2, 3, 4, 5, 6, // data
-
             7, 0, // length
             3, 1, // type
             3, 4, 5, // data
