@@ -85,7 +85,7 @@ mod kind;
 pub use kind::Kind;
 
 mod keys;
-pub use keys::{PublicKey, SecretKey};
+pub use keys::{EncryptedSecretKey, PublicKey, SecretKey};
 
 mod message;
 pub use message::{Message, MessageType, QueryClosedCode, QueryId, SubmissionResultCode};

@@ -25,6 +25,9 @@ impl std::fmt::Display for Error {
 /// Errors that can occur in this crate
 #[derive(Debug)]
 pub enum InnerError {
+    /// Bad Encrypted Secret Key
+    BadEncryptedSecretKey,
+
     /// Unsupported URI scheme
     BadScheme(String),
 
@@ -124,6 +127,9 @@ pub enum InnerError {
     /// Reserved space used
     ReservedSpaceUsed,
 
+    /// Scrypt error
+    Scrypt(scrypt::errors::InvalidParams),
+
     /// Time error
     SystemTime(std::time::SystemTimeError),
 
@@ -145,6 +151,9 @@ pub enum InnerError {
     /// Unknown filter element
     UnknownFilterElement(u8),
 
+    /// Unsupported Encrypted Secret Key Version
+    UnsupportedEncryptedSecretKeyVersion(u8),
+
     /// UTF-8 error
     Utf8(std::str::Utf8Error),
 
@@ -155,6 +164,7 @@ pub enum InnerError {
 impl std::fmt::Display for InnerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            InnerError::BadEncryptedSecretKey => write!(f, "Bad encrypted secret key"),
             InnerError::BadScheme(s) => write!(f, "Unsupported URI scheme: {s}"),
             InnerError::DataTooLong => write!(f, "Data too long"),
             InnerError::DhtPutError => write!(f, "DHT put error"),
@@ -191,6 +201,7 @@ impl std::fmt::Display for InnerError {
             InnerError::ReferenceLength => write!(f, "Reference data length is not 48 bytes"),
             InnerError::ReservedFlagsUsed => write!(f, "Reserved flags used"),
             InnerError::ReservedSpaceUsed => write!(f, "Reserved space used"),
+            InnerError::Scrypt(e) => write!(f, "Scrypt: {e}"),
             InnerError::SystemTime(e) => write!(f, "Time Error: {e}"),
             InnerError::TagTooLong => write!(f, "Tag too long"),
             InnerError::TimeIsBeyondLeapSecondData => {
@@ -200,6 +211,9 @@ impl std::fmt::Display for InnerError {
             InnerError::TimestampMismatch => write!(f, "Timestamp mismatch"),
             InnerError::TooManyDataElements(c) => write!(f, "Too many data elements. Max is {c}"),
             InnerError::UnknownFilterElement(u) => write!(f, "Unknown filter element: {u}"),
+            InnerError::UnsupportedEncryptedSecretKeyVersion(v) => {
+                write!(f, "Unsupported Encrypted Secret Key Version: {v}")
+            }
             InnerError::Utf8(e) => write!(f, "UTF-8 error: {e}"),
             InnerError::Z32(e) => write!(f, "zbase32 error: {e}"),
         }
@@ -212,6 +226,7 @@ impl StdError for InnerError {
             InnerError::Ed25519(e) => Some(e),
             InnerError::InvalidUri(e) => Some(e),
             InnerError::InvalidUriParts(e) => Some(e),
+            InnerError::Scrypt(e) => Some(e),
             InnerError::SystemTime(e) => Some(e),
             InnerError::Utf8(e) => Some(e),
             _ => None,
@@ -297,6 +312,16 @@ impl From<http::uri::InvalidUriParts> for Error {
     fn from(e: http::uri::InvalidUriParts) -> Error {
         Error {
             inner: InnerError::InvalidUriParts(e),
+            location: Location::caller(),
+        }
+    }
+}
+
+impl From<scrypt::errors::InvalidParams> for Error {
+    #[track_caller]
+    fn from(e: scrypt::errors::InvalidParams) -> Error {
+        Error {
+            inner: InnerError::Scrypt(e),
             location: Location::caller(),
         }
     }
