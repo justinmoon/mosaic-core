@@ -467,7 +467,7 @@ impl OwnedTag {
         }
         let mut buffer = vec![0; len];
         buffer[0..2].copy_from_slice((len as u16).to_le_bytes().as_slice());
-        buffer[2..4].copy_from_slice(ty.into_u16().to_be_bytes().as_slice());
+        buffer[2..4].copy_from_slice(ty.into_u16().to_le_bytes().as_slice());
         buffer[4..].copy_from_slice(value.as_ref());
         Ok(OwnedTag(buffer))
     }
