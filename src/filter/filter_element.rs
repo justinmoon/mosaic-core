@@ -143,7 +143,13 @@ impl FilterElement {
             FilterElementType::INCLUDED_TAGS | FilterElementType::EXCLUDED_TAGS => {
                 let mut i = 8;
                 while i < len {
-                    let t = Tag::from_bytes(&input[i..])?;
+                    let t = match Tag::from_bytes(&input[i..]) {
+                        Ok(t) => t,
+                        Err(e) => match e.inner {
+                            InnerError::Padding => break,
+                            _ => return Err(e),
+                        }
+                    };
                     i += t.as_bytes().len();
                 }
             }
