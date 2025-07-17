@@ -16,7 +16,7 @@ fn main() {
             deterministic_nonce: None,
             timestamp: Timestamp::now().unwrap(),
             flags: RecordFlags::empty(),
-            tag_set: &*EMPTY_TAG_SET,
+            tag_set: &EMPTY_TAG_SET,
             payload: b"Hello World!",
         },
     )

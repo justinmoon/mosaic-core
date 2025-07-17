@@ -186,6 +186,7 @@ impl FilterElement {
     /// Bytes must be a valid `FilterElement`, otherwise undefined results can occur including
     /// panics
     #[must_use]
+    #[allow(clippy::missing_panics_doc)]
     pub unsafe fn from_bytes_unchecked(input: &[u8]) -> &FilterElement {
         let len = Self::verify_length(input).unwrap();
         Self::from_inner(&input[0..len])

@@ -61,6 +61,9 @@ pub enum InnerError {
     /// General error
     General(String),
 
+    /// Integer too big
+    IntTooBig(std::num::TryFromIntError),
+
     /// Invalid Address bytes
     InvalidAddressBytes,
 
@@ -176,6 +179,7 @@ impl std::fmt::Display for InnerError {
             InnerError::HashMismatch => write!(f, "Hash mismatch"),
             InnerError::KeyLength => write!(f, "Key data length is not 32 bytes"),
             InnerError::General(s) => write!(f, "General Error: {s}"),
+            InnerError::IntTooBig(e) => write!(f, "Integer too big: {e}"),
             InnerError::InvalidAddressBytes => write!(f, "Invalid Address bytes"),
             InnerError::InvalidFilterElement => write!(f, "Invalid filter element"),
             InnerError::InvalidFilterElementForFunction => write!(
@@ -224,6 +228,7 @@ impl StdError for InnerError {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match self {
             InnerError::Ed25519(e) => Some(e),
+            InnerError::IntTooBig(e) => Some(e),
             InnerError::InvalidUri(e) => Some(e),
             InnerError::InvalidUriParts(e) => Some(e),
             InnerError::Scrypt(e) => Some(e),
@@ -282,6 +287,16 @@ impl From<()> for Error {
     fn from((): ()) -> Self {
         Error {
             inner: InnerError::General("Error".to_owned()),
+            location: Location::caller(),
+        }
+    }
+}
+
+impl From<std::num::TryFromIntError> for Error {
+    #[track_caller]
+    fn from(e: std::num::TryFromIntError) -> Error {
+        Error {
+            inner: InnerError::IntTooBig(e),
             location: Location::caller(),
         }
     }

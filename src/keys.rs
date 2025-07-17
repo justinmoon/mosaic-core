@@ -195,7 +195,7 @@ impl EncryptedSecretKey {
         password: &str,
         log_n: u8,
         csprng: &mut R,
-    ) -> Result<EncryptedSecretKey, Error> {
+    ) -> EncryptedSecretKey {
         let mut output = vec![0; 50];
         output[0] = 0x01;
         output[1] = log_n;
@@ -208,7 +208,7 @@ impl EncryptedSecretKey {
 
         // Deterministically generate the symmetric key
         let mut symmetric_key: [u8; 32] = {
-            let params = scrypt::Params::new(log_n, 8, 1, 32)?;
+            let params = scrypt::Params::new(log_n, 8, 1, 32).unwrap();
             let mut key = [0; 32];
             scrypt::scrypt(password.as_bytes(), salt, &params, &mut key).unwrap();
             key
@@ -224,23 +224,19 @@ impl EncryptedSecretKey {
         // Copy into the output
         output[18..50].copy_from_slice(&xor_output);
 
-        Ok(EncryptedSecretKey(output))
+        EncryptedSecretKey(output)
     }
 
     /// Decrypt an `EncryptedSecretKey` into a `SecretKey`
-    pub fn to_secret_key(&self, password: &str) -> Result<SecretKey, Error> {
-        if self.0.len() != 50 {
-            return Err(InnerError::BadEncryptedSecretKey.into());
-        }
-        if self.0[0] != 0x01 {
-            return Err(InnerError::UnsupportedEncryptedSecretKeyVersion(self.0[0]).into());
-        }
+    #[allow(clippy::missing_panics_doc)]
+    #[must_use]
+    pub fn to_secret_key(&self, password: &str) -> SecretKey {
         let log_n = self.0[1];
         let salt = &self.0[2..18];
 
         // Deterministically generate the symmetric key
         let mut symmetric_key: [u8; 32] = {
-            let params = scrypt::Params::new(log_n, 8, 1, 32)?;
+            let params = scrypt::Params::new(log_n, 8, 1, 32).unwrap();
             let mut key = [0; 32];
             scrypt::scrypt(password.as_bytes(), salt, &params, &mut key).unwrap();
             key
@@ -253,7 +249,7 @@ impl EncryptedSecretKey {
             .for_each(|(x1, x2)| *x1 ^= *x2);
         let bytes = symmetric_key;
 
-        Ok(SecretKey::from_bytes(&bytes))
+        SecretKey::from_bytes(&bytes)
     }
 
     /// Convert an `EncryptedSecretKey` into the human printable `mocryptsec0` form.
@@ -266,12 +262,19 @@ impl EncryptedSecretKey {
     ///
     /// # Errors
     ///
-    /// Will return `Err` if the input is not an `EncryptedSecretKey`
+    /// Will return `Err` if the input is not an `EncryptedSecretKey`, or is the wrong
+    /// length of data, or is not version 1
     pub fn from_printable(s: &str) -> Result<EncryptedSecretKey, Error> {
         if !s.starts_with("mocryptsec0") {
             return Err(InnerError::InvalidPrintable.into_err());
         }
         let bytes = z32::decode(&s.as_bytes()[11..])?;
+        if bytes.len() != 50 {
+            return Err(InnerError::BadEncryptedSecretKey.into());
+        }
+        if bytes[0] != 0x01 {
+            return Err(InnerError::UnsupportedEncryptedSecretKeyVersion(bytes[0]).into());
+        }
         Ok(EncryptedSecretKey(bytes))
     }
 }
@@ -307,15 +310,14 @@ mod test {
 
         let secret_key = SecretKey::generate(&mut csprng);
         let encrypted_secret_key =
-            EncryptedSecretKey::from_secret_key(&secret_key, "testing123", 18, &mut csprng)
-                .unwrap();
+            EncryptedSecretKey::from_secret_key(&secret_key, "testing123", 18, &mut csprng);
 
         println!("{}", encrypted_secret_key);
 
-        let secret_key2 = encrypted_secret_key.to_secret_key("testing123").unwrap();
+        let secret_key2 = encrypted_secret_key.to_secret_key("testing123");
         assert_eq!(secret_key, secret_key2);
 
-        let wrong_secret_key = encrypted_secret_key.to_secret_key("wrongpassword").unwrap();
+        let wrong_secret_key = encrypted_secret_key.to_secret_key("wrongpassword");
         assert_ne!(secret_key, wrong_secret_key);
     }
 }
