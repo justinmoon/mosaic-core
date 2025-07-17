@@ -100,7 +100,7 @@ bitflags! {
         const READ_ACCESS = 0b0000_1100;
 
         /// If the payload is printable
-        const IS_PRINTABLE = 0b0001_0000;
+        const CONTENT_IS_PRINTABLE = 0b0001_0000;
 
         // Any other bits might be set
         const _ = !0;
@@ -116,11 +116,15 @@ impl Default for KindFlags {
 impl KindFlags {
     /// Create a `KindFlags` from flag parts
     #[must_use]
-    pub fn from_parts(dh: DuplicateHandling, ra: ReadAccess, is_printable: bool) -> KindFlags {
+    pub fn from_parts(
+        dh: DuplicateHandling,
+        ra: ReadAccess,
+        content_is_printable: bool,
+    ) -> KindFlags {
         let mut s: KindFlags = KindFlags(0);
         s.set_duplicate_handling(dh);
         s.set_read_access(ra);
-        s.set_is_printable(is_printable);
+        s.set_content_is_printable(content_is_printable);
         s
     }
 
@@ -158,12 +162,12 @@ impl KindFlags {
 
     /// Is Printable
     #[must_use]
-    pub fn is_printable(&self) -> bool {
-        self.contains(Self::IS_PRINTABLE)
+    pub fn content_is_printable(&self) -> bool {
+        self.contains(Self::CONTENT_IS_PRINTABLE)
     }
 
     /// Set Is Printable
-    pub fn set_is_printable(&mut self, is_printable: bool) {
-        self.set(Self::IS_PRINTABLE, is_printable);
+    pub fn set_content_is_printable(&mut self, content_is_printable: bool) {
+        self.set(Self::CONTENT_IS_PRINTABLE, content_is_printable);
     }
 }

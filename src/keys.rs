@@ -60,7 +60,7 @@ impl PublicKey {
 
     /// Convert a `PublicKey` into the human printable `mopub0` form.
     #[must_use]
-    pub fn printable(&self) -> String {
+    pub fn as_printable(&self) -> String {
         format!("mopub0{}", z32::encode(&self.0))
     }
 
@@ -83,7 +83,7 @@ impl PublicKey {
 
 impl std::fmt::Display for PublicKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.printable())
+        write!(f, "{}", self.as_printable())
     }
 }
 
@@ -147,7 +147,7 @@ impl SecretKey {
 
     /// Convert a `SecretKey` into the human printable `mosec0` form.
     #[must_use]
-    pub fn printable(&self) -> String {
+    pub fn as_printable(&self) -> String {
         format!("mosec0{}", z32::encode(&self.0))
     }
 
@@ -170,7 +170,7 @@ impl SecretKey {
 
 impl std::fmt::Display for SecretKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.printable())
+        write!(f, "{}", self.as_printable())
     }
 }
 
@@ -275,7 +275,7 @@ impl EncryptedSecretKey {
 
     /// Convert an `EncryptedSecretKey` into the human printable `mocryptsec0` form.
     #[must_use]
-    pub fn printable(&self) -> String {
+    pub fn as_printable(&self) -> String {
         format!("mocryptsec0{}", z32::encode(&self.0))
     }
 
@@ -305,7 +305,7 @@ impl EncryptedSecretKey {
 
 impl std::fmt::Display for EncryptedSecretKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.printable())
+        write!(f, "{}", self.as_printable())
     }
 }
 

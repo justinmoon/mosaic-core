@@ -107,8 +107,8 @@ impl Kind {
 
     /// Is the content printable?
     #[must_use]
-    pub fn is_printable(&self) -> bool {
-        self.flags().is_printable()
+    pub fn content_is_printable(&self) -> bool {
+        self.flags().content_is_printable()
     }
 }
 
@@ -125,7 +125,7 @@ mod test {
             DuplicateHandling::Replaceable
         );
         assert_eq!(Kind::KEY_SCHEDULE.read_access(), ReadAccess::Everybody);
-        assert_eq!(Kind::KEY_SCHEDULE.is_printable(), false);
+        assert_eq!(Kind::KEY_SCHEDULE.content_is_printable(), false);
 
         assert_eq!(Kind::PROFILE.application_id(), 0);
         assert_eq!(Kind::PROFILE.application_specific_kind(), 2);
@@ -134,7 +134,7 @@ mod test {
             DuplicateHandling::Replaceable
         );
         assert_eq!(Kind::PROFILE.read_access(), ReadAccess::Everybody);
-        assert_eq!(Kind::PROFILE.is_printable(), false);
+        assert_eq!(Kind::PROFILE.content_is_printable(), false);
 
         assert_eq!(Kind::MICROBLOG_ROOT.application_id(), 1);
         assert_eq!(Kind::MICROBLOG_ROOT.application_specific_kind(), 1);
@@ -143,7 +143,7 @@ mod test {
             DuplicateHandling::Unique
         );
         assert_eq!(Kind::MICROBLOG_ROOT.read_access(), ReadAccess::Everybody);
-        assert_eq!(Kind::MICROBLOG_ROOT.is_printable(), true);
+        assert_eq!(Kind::MICROBLOG_ROOT.content_is_printable(), true);
 
         assert_eq!(Kind::REPLY_COMMENT.application_id(), 1);
         assert_eq!(Kind::REPLY_COMMENT.application_specific_kind(), 2);
@@ -152,7 +152,7 @@ mod test {
             DuplicateHandling::Unique
         );
         assert_eq!(Kind::REPLY_COMMENT.read_access(), ReadAccess::Everybody);
-        assert_eq!(Kind::REPLY_COMMENT.is_printable(), true);
+        assert_eq!(Kind::REPLY_COMMENT.content_is_printable(), true);
 
         assert_eq!(Kind::BLOG_POST.application_id(), 1);
         assert_eq!(Kind::BLOG_POST.application_specific_kind(), 3);
@@ -161,7 +161,7 @@ mod test {
             DuplicateHandling::Unique
         );
         assert_eq!(Kind::BLOG_POST.read_access(), ReadAccess::Everybody);
-        assert_eq!(Kind::BLOG_POST.is_printable(), true);
+        assert_eq!(Kind::BLOG_POST.content_is_printable(), true);
 
         assert_eq!(Kind::CHAT_MESSAGE.application_id(), 1);
         assert_eq!(Kind::CHAT_MESSAGE.application_specific_kind(), 4);
@@ -170,6 +170,6 @@ mod test {
             DuplicateHandling::Unique
         );
         assert_eq!(Kind::CHAT_MESSAGE.read_access(), ReadAccess::Everybody);
-        assert_eq!(Kind::CHAT_MESSAGE.is_printable(), true);
+        assert_eq!(Kind::CHAT_MESSAGE.content_is_printable(), true);
     }
 }

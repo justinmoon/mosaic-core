@@ -407,13 +407,17 @@ const HASHABLE_RANGE: RangeFrom<usize> = 112..;
 
 impl std::fmt::Display for Record {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "id: {}", self.id().printable())?;
-        writeln!(f, "  address: {}", self.address().printable())?;
-        writeln!(f, "  author key: {}", self.author_public_key().printable())?;
+        writeln!(f, "id: {}", self.id().as_printable())?;
+        writeln!(f, "  address: {}", self.address().as_printable())?;
+        writeln!(
+            f,
+            "  author key: {}",
+            self.author_public_key().as_printable()
+        )?;
         writeln!(
             f,
             "  signing key: {}",
-            self.signing_public_key().printable()
+            self.signing_public_key().as_printable()
         )?;
         writeln!(f, "  timestamp: {}", self.timestamp())?;
         writeln!(f, "  kind: {}", self.kind())?;
@@ -423,7 +427,7 @@ impl std::fmt::Display for Record {
             "  tag_set (zbase32): {}",
             z32::encode(self.tag_set().as_bytes())
         )?;
-        if self.kind().is_printable() {
+        if self.kind().content_is_printable() {
             writeln!(
                 f,
                 "  payload: {}",

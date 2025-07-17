@@ -59,7 +59,7 @@ impl Id {
 
     /// Convert an `Id` into a human printable `moref0` form.
     #[must_use]
-    pub fn printable(&self) -> String {
+    pub fn as_printable(&self) -> String {
         format!("moref0{}", z32::encode(self.as_ref()))
     }
 
@@ -111,7 +111,7 @@ impl AsRef<[u8]> for Id {
 
 impl std::fmt::Display for Id {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.printable())
+        write!(f, "{}", self.as_printable())
     }
 }
 
