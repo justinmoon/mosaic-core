@@ -28,6 +28,9 @@ pub enum InnerError {
     /// Bad Encrypted Secret Key
     BadEncryptedSecretKey,
 
+    /// Bad Password
+    BadPassword,
+
     /// Unsupported URI scheme
     BadScheme(String),
 
@@ -48,6 +51,9 @@ pub enum InnerError {
 
     /// End of Output
     EndOfOutput,
+
+    /// Excessive scrypt `LOG_N` parameter
+    ExcessiveScryptLogNParameter(u8),
 
     /// Filter element is too long
     FilterElementTooLong,
@@ -168,6 +174,7 @@ impl std::fmt::Display for InnerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             InnerError::BadEncryptedSecretKey => write!(f, "Bad encrypted secret key"),
+            InnerError::BadPassword => write!(f, "Bad password"),
             InnerError::BadScheme(s) => write!(f, "Unsupported URI scheme: {s}"),
             InnerError::DataTooLong => write!(f, "Data too long"),
             InnerError::DhtPutError => write!(f, "DHT put error"),
@@ -175,6 +182,9 @@ impl std::fmt::Display for InnerError {
             InnerError::Ed25519(e) => write!(f, "ed25519 Error: {e}"),
             InnerError::EndOfInput => write!(f, "End of input"),
             InnerError::EndOfOutput => write!(f, "End of output"),
+            InnerError::ExcessiveScryptLogNParameter(l) => {
+                write!(f, "Computationally excessive scrypt LOG_N parameter: {l}")
+            }
             InnerError::FilterElementTooLong => write!(f, "Filter element too long"),
             InnerError::HashMismatch => write!(f, "Hash mismatch"),
             InnerError::KeyLength => write!(f, "Key data length is not 32 bytes"),

@@ -188,6 +188,10 @@ impl Eq for SecretKey {}
 pub struct EncryptedSecretKey(Vec<u8>);
 
 impl EncryptedSecretKey {
+    const CHECK_BYTES: &[u8] = &[0xb9, 0x60, 0xa1, 0xe2];
+
+    const MAX_LOG_N: u8 = 22;
+
     /// Encrypt a `SecretKey` into an `EncryptedSecretKey`
     #[allow(clippy::missing_panics_doc)]
     pub fn from_secret_key<R: rand_core::CryptoRngCore + ?Sized>(
@@ -196,7 +200,7 @@ impl EncryptedSecretKey {
         log_n: u8,
         csprng: &mut R,
     ) -> EncryptedSecretKey {
-        let mut output = vec![0; 50];
+        let mut output = vec![0; 54];
         output[0] = 0x01;
         output[1] = log_n;
 
@@ -207,9 +211,9 @@ impl EncryptedSecretKey {
         };
 
         // Deterministically generate the symmetric key
-        let mut symmetric_key: [u8; 32] = {
-            let params = scrypt::Params::new(log_n, 8, 1, 32).unwrap();
-            let mut key = [0; 32];
+        let mut symmetric_key: [u8; 36] = {
+            let params = scrypt::Params::new(log_n, 8, 1, 36).unwrap();
+            let mut key = [0; 36];
             scrypt::scrypt(password.as_bytes(), salt, &params, &mut key).unwrap();
             key
         };
@@ -217,27 +221,40 @@ impl EncryptedSecretKey {
         // Overwrite the symmetric key with the XOR
         symmetric_key
             .iter_mut()
-            .zip(secret_key.as_bytes().iter())
+            .zip(secret_key.as_bytes().iter().chain(Self::CHECK_BYTES.iter()))
             .for_each(|(x1, x2)| *x1 ^= *x2);
         let xor_output = symmetric_key;
 
         // Copy into the output
-        output[18..50].copy_from_slice(&xor_output);
+        output[18..54].copy_from_slice(&xor_output);
 
         EncryptedSecretKey(output)
     }
 
     /// Decrypt an `EncryptedSecretKey` into a `SecretKey`
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the password is wrong, or if the version is unsupported,
+    /// or if the scrypt `LOG_N` parameter is computationally excessive.
     #[allow(clippy::missing_panics_doc)]
-    #[must_use]
-    pub fn to_secret_key(&self, password: &str) -> SecretKey {
+    pub fn to_secret_key(&self, password: &str) -> Result<SecretKey, Error> {
+        let version = self.0[0];
+        if version != 0x01 {
+            return Err(InnerError::UnsupportedEncryptedSecretKeyVersion(version).into());
+        }
+
         let log_n = self.0[1];
+        if log_n > Self::MAX_LOG_N {
+            return Err(InnerError::ExcessiveScryptLogNParameter(log_n).into());
+        }
+
         let salt = &self.0[2..18];
 
         // Deterministically generate the symmetric key
-        let mut symmetric_key: [u8; 32] = {
-            let params = scrypt::Params::new(log_n, 8, 1, 32).unwrap();
-            let mut key = [0; 32];
+        let mut symmetric_key: [u8; 36] = {
+            let params = scrypt::Params::new(log_n, 8, 1, 36).unwrap();
+            let mut key = [0; 36];
             scrypt::scrypt(password.as_bytes(), salt, &params, &mut key).unwrap();
             key
         };
@@ -245,11 +262,15 @@ impl EncryptedSecretKey {
         // Overwrite the symmetric key with the XOR
         symmetric_key
             .iter_mut()
-            .zip(self.0[18..50].iter())
+            .zip(self.0[18..54].iter())
             .for_each(|(x1, x2)| *x1 ^= *x2);
         let bytes = symmetric_key;
 
-        SecretKey::from_bytes(&bytes)
+        if &bytes[32..36] != Self::CHECK_BYTES {
+            return Err(InnerError::BadPassword.into());
+        }
+
+        Ok(SecretKey::from_bytes(bytes[0..32].try_into().unwrap()))
     }
 
     /// Convert an `EncryptedSecretKey` into the human printable `mocryptsec0` form.
@@ -274,6 +295,9 @@ impl EncryptedSecretKey {
         }
         if bytes[0] != 0x01 {
             return Err(InnerError::UnsupportedEncryptedSecretKeyVersion(bytes[0]).into());
+        }
+        if bytes[1] > Self::MAX_LOG_N {
+            return Err(InnerError::ExcessiveScryptLogNParameter(bytes[1]).into());
         }
         Ok(EncryptedSecretKey(bytes))
     }
@@ -314,10 +338,9 @@ mod test {
 
         println!("{}", encrypted_secret_key);
 
-        let secret_key2 = encrypted_secret_key.to_secret_key("testing123");
+        let secret_key2 = encrypted_secret_key.to_secret_key("testing123").unwrap();
         assert_eq!(secret_key, secret_key2);
 
-        let wrong_secret_key = encrypted_secret_key.to_secret_key("wrongpassword");
-        assert_ne!(secret_key, wrong_secret_key);
+        assert!(encrypted_secret_key.to_secret_key("wrongpassword").is_err());
     }
 }
