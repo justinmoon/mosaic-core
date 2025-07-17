@@ -1,4 +1,6 @@
 use crate::{Error, InnerError, Tag};
+#[cfg(feature = "json")]
+use serde::{Deserialize, Serialize};
 use std::ops::{Deref, DerefMut};
 
 /// A sequence of `Tag`s, borrowed
@@ -111,6 +113,7 @@ impl<'a> Iterator for TagSetIter<'a> {
 ///
 /// See `TagSet` for the borrowed variant.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "json", derive(Deserialize, Serialize))]
 pub struct OwnedTagSet(Vec<u8>);
 
 /// Empty `TagSet`

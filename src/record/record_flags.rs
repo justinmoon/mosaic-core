@@ -1,7 +1,10 @@
 use bitflags::bitflags;
+#[cfg(feature = "json")]
+use serde::{Deserialize, Serialize};
 
 /// Server usage flags
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "json", derive(Deserialize, Serialize))]
 pub struct RecordFlags(u16);
 
 bitflags! {

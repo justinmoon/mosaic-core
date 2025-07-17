@@ -106,6 +106,10 @@ pub enum InnerError {
     /// Invalid URI parts
     InvalidUriParts(http::uri::InvalidUriParts),
 
+    /// Json Error
+    #[cfg(feature = "json")]
+    Json(serde_json::Error),
+
     /// Missing scheme
     MissingScheme,
 
@@ -117,6 +121,9 @@ pub enum InnerError {
 
     /// The bytes are padding
     Padding,
+
+    /// Parse Integer error
+    ParseInt(std::num::ParseIntError),
 
     /// Record section length mismatch
     RecordSectionLengthMismatch,
@@ -138,6 +145,9 @@ pub enum InnerError {
 
     /// Scrypt error
     Scrypt(scrypt::errors::InvalidParams),
+
+    /// Slice error
+    SliceError(std::array::TryFromSliceError),
 
     /// Time error
     SystemTime(std::time::SystemTimeError),
@@ -205,10 +215,13 @@ impl std::fmt::Display for InnerError {
             InnerError::InvalidUserBootstrapString => write!(f, "Invalid UserBootstrap String"),
             InnerError::InvalidUri(e) => write!(f, "Invalid URI: {e}"),
             InnerError::InvalidUriParts(e) => write!(f, "Invalid URI parts: {e}"),
+            #[cfg(feature = "json")]
+            InnerError::Json(e) => write!(f, "JSON: {e}"),
             InnerError::MissingScheme => write!(f, "Missing scheme"),
             InnerError::NotAnAddress => write!(f, "Reference is not an address"),
             InnerError::NotAnId => write!(f, "Reference is not an ID"),
             InnerError::Padding => write!(f, "The bytes are padding"),
+            InnerError::ParseInt(e) => write!(f, "Parse integer error: {e}"),
             InnerError::RecordSectionLengthMismatch => write!(f, "Record section length mismatch"),
             InnerError::RecordTooLong => write!(f, "Record too long"),
             InnerError::RecordTooShort => write!(f, "Record too short"),
@@ -216,6 +229,7 @@ impl std::fmt::Display for InnerError {
             InnerError::ReservedFlagsUsed => write!(f, "Reserved flags used"),
             InnerError::ReservedSpaceUsed => write!(f, "Reserved space used"),
             InnerError::Scrypt(e) => write!(f, "Scrypt: {e}"),
+            InnerError::SliceError(e) => write!(f, "Slice (size) error: {e}"),
             InnerError::SystemTime(e) => write!(f, "Time Error: {e}"),
             InnerError::TagTooLong => write!(f, "Tag too long"),
             InnerError::TimeIsBeyondLeapSecondData => {
@@ -241,7 +255,11 @@ impl StdError for InnerError {
             InnerError::IntTooBig(e) => Some(e),
             InnerError::InvalidUri(e) => Some(e),
             InnerError::InvalidUriParts(e) => Some(e),
+            #[cfg(feature = "json")]
+            InnerError::Json(e) => Some(e),
+            InnerError::ParseInt(e) => Some(e),
             InnerError::Scrypt(e) => Some(e),
+            InnerError::SliceError(e) => Some(e),
             InnerError::SystemTime(e) => Some(e),
             InnerError::Utf8(e) => Some(e),
             _ => None,
@@ -342,11 +360,42 @@ impl From<http::uri::InvalidUriParts> for Error {
     }
 }
 
+#[cfg(feature = "json")]
+impl From<serde_json::Error> for Error {
+    #[track_caller]
+    fn from(e: serde_json::Error) -> Error {
+        Error {
+            inner: InnerError::Json(e),
+            location: Location::caller(),
+        }
+    }
+}
+
+impl From<std::num::ParseIntError> for Error {
+    #[track_caller]
+    fn from(e: std::num::ParseIntError) -> Error {
+        Error {
+            inner: InnerError::ParseInt(e),
+            location: Location::caller(),
+        }
+    }
+}
+
 impl From<scrypt::errors::InvalidParams> for Error {
     #[track_caller]
     fn from(e: scrypt::errors::InvalidParams) -> Error {
         Error {
             inner: InnerError::Scrypt(e),
+            location: Location::caller(),
+        }
+    }
+}
+
+impl From<std::array::TryFromSliceError> for Error {
+    #[track_caller]
+    fn from(e: std::array::TryFromSliceError) -> Error {
+        Error {
+            inner: InnerError::SliceError(e),
             location: Location::caller(),
         }
     }

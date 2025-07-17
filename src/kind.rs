@@ -1,12 +1,15 @@
 use crate::{DuplicateHandling, KindFlags, ReadAccess};
+#[cfg(feature = "json")]
+use serde::{Deserialize, Serialize};
 
 /// A record kind
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "json", derive(Deserialize, Serialize))]
 pub struct Kind(u64);
 
 impl Kind {
     /// Example Kind for use in examples
-    pub const EXAMPLE: Kind = Kind(0x0000_0063_0001_000e);
+    pub const EXAMPLE: Kind = Kind(0x0000_0063_0001_001c);
 
     /// Key Schedule Record
     pub const KEY_SCHEDULE: Kind = Kind(0x0000_0000_0001_000e);

@@ -81,11 +81,11 @@ pub use filter::{
 mod id;
 pub use id::Id;
 
-mod kind;
-pub use kind::Kind;
-
 mod keys;
 pub use keys::{EncryptedSecretKey, PublicKey, SecretKey};
+
+mod kind;
+pub use kind::Kind;
 
 mod kind_flags;
 pub use kind_flags::{DuplicateHandling, KindFlags, ReadAccess};
@@ -94,10 +94,10 @@ mod message;
 pub use message::{Message, MessageType, QueryClosedCode, QueryId, SubmissionResultCode};
 
 mod record;
-pub use record::{OwnedRecord, Record, RecordAddressData, RecordParts, RecordSigningData};
-
-mod record_flags;
-pub use record_flags::{RecordFlags, SignatureScheme};
+pub use record::{
+    OwnedRecord, Record, RecordAddressData, RecordFlags, RecordParts, RecordSigningData,
+    SignatureScheme,
+};
 
 mod reference;
 pub use reference::Reference;

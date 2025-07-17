@@ -6,6 +6,10 @@ authors = [ "Steve Farroll <stevefarroll@proton.me>" ]
 license = "MIT"
 edition = "2021"
 
+[features]
+default = []
+json = [ "serde", "serde_json" ]
+
 [dependencies]
 bitflags = "2.9"
 blake3 = "1.7"
@@ -18,6 +22,8 @@ mainline = { version = "5.3", features = [ "async" ] }
 rand = "0.8"
 rand_core = "0.6"
 scrypt = "0.11"
+serde = { version = "1.0", default-features = false, features = ["alloc"], optional = true }
+serde_json = { version = "1.0", default-features = false, features = ["alloc"], optional = true }
 z32 = "1.3"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
