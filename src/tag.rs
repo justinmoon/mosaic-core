@@ -652,6 +652,7 @@ macro_rules! test_tag_type {
 mod test {
     use super::*;
     use crate::keys::*;
+    use crate::{DuplicateHandling, KindFlags, ReadAccess};
 
     #[test]
     fn test_tags() {
@@ -669,7 +670,11 @@ mod test {
         let url = "https://example.com/meme.jpg";
         let offset = 71;
         let id: [u8; 32] = [7; 32];
-        let kind = Kind::from_bytes([0, 0, 0, 0, 99, 0, 1, 3]);
+        let kind = Kind::from_parts(
+            99,
+            1,
+            KindFlags::from_parts(DuplicateHandling::Versioned, ReadAccess::AuthorOnly, false),
+        );
 
         let v = test_tag_type!(
             OwnedTag::new_notify_public_key(&public_key),

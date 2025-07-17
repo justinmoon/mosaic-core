@@ -176,6 +176,7 @@ impl AsMut<TagSet> for OwnedTagSet {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::{DuplicateHandling, KindFlags, ReadAccess};
     use crate::{Kind, OwnedTag, Reference, SecretKey, TagType};
     use rand::rngs::OsRng;
 
@@ -191,7 +192,11 @@ mod test {
             Reference::from_printable(printable).unwrap()
         };
         let url = "https://example.com/meme.jpg";
-        let kind = Kind::from_bytes([0, 0, 0, 0, 99, 0, 1, 3]);
+        let kind = Kind::from_parts(
+            99,
+            1,
+            KindFlags::from_parts(DuplicateHandling::Versioned, ReadAccess::AuthorOnly, false),
+        );
         let offset = 71;
 
         let mut tag_set = OwnedTagSet::new();

@@ -163,16 +163,16 @@ mod test {
         let author_key = PublicKey::from_printable(author_key_printable).unwrap();
 
         /* generate this test:
-            let addr0 = Address::new_deterministic(
-                author_key,
-                Kind::KEY_SCHEDULE,
-            b"hello world",
-            );
-            println!("{}", addr0);
+           let addr0 = Address::new_deterministic(
+               author_key,
+               Kind::KEY_SCHEDULE,
+           b"hello world",
+           );
+           println!("{}", addr0);
         */
 
         let printable =
-            "moref047rad578begeoyyyyyyyyyybbaobh88zknproi8j5791e5mekfez1ye6zrifbhh6m1dtizcsp4y5w";
+            "moref047rad578begeoyyyyyyyyyeybaobh88zknproi8j5791e5mekfez1ye6zrifbhh6m1dtizcsp4y5w";
 
         let addr = Address::from_printable(printable).unwrap();
         assert_eq!(addr.author_public_key(), author_key);

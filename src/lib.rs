@@ -87,6 +87,9 @@ pub use kind::Kind;
 mod keys;
 pub use keys::{EncryptedSecretKey, PublicKey, SecretKey};
 
+mod kind_flags;
+pub use kind_flags::{DuplicateHandling, KindFlags, ReadAccess};
+
 mod message;
 pub use message::{Message, MessageType, QueryClosedCode, QueryId, SubmissionResultCode};
 
