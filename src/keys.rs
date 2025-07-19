@@ -184,6 +184,15 @@ impl Eq for SecretKey {}
 
 /// An encrypted secret signing key
 /// whether a master key or subkey.
+//
+//  Layout:
+//    0      - Version byte
+//    1      - Log N byte
+//    2..18  - Salt
+//    18..50 - Secret Key (encrypted)
+//    50..54 - Rand4
+//    54..58 - Randomized Checkbytes = Rand4 ^ Check Bytes
+//
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct EncryptedSecretKey(Vec<u8>);
 
@@ -200,7 +209,7 @@ impl EncryptedSecretKey {
         log_n: u8,
         csprng: &mut R,
     ) -> EncryptedSecretKey {
-        let mut output = vec![0; 54];
+        let mut output = vec![0; 58];
         output[0] = 0x01;
         output[1] = log_n;
 
@@ -210,23 +219,26 @@ impl EncryptedSecretKey {
             &output[2..18]
         };
 
-        // Deterministically generate the symmetric key
-        let mut symmetric_key: [u8; 36] = {
-            let params = scrypt::Params::new(log_n, 8, 1, 36).unwrap();
-            let mut key = [0; 36];
-            scrypt::scrypt(password.as_bytes(), salt, &params, &mut key).unwrap();
-            key
-        };
+        let mut symmetric_key: [u8; 40] = Self::symmetric_key(log_n, password, salt);
 
-        // Overwrite the symmetric key with the XOR
-        symmetric_key
-            .iter_mut()
-            .zip(secret_key.as_bytes().iter().chain(Self::CHECK_BYTES.iter()))
-            .for_each(|(x1, x2)| *x1 ^= *x2);
+        let mut rand4 = vec![0; 4];
+        csprng.as_rngcore().fill_bytes(&mut rand4);
+
+        let mut randomized_checkbytes = rand4.clone();
+        Self::xor_into_first(&mut randomized_checkbytes, Self::CHECK_BYTES.iter());
+
+        let concatenation = secret_key
+            .as_bytes()
+            .iter()
+            .chain(rand4.iter())
+            .chain(randomized_checkbytes.iter());
+
+        // Overwrite the symmetric key with the XOR of the concatenation
+        Self::xor_into_first(&mut symmetric_key, concatenation);
         let xor_output = symmetric_key;
 
         // Copy into the output
-        output[18..54].copy_from_slice(&xor_output);
+        output[18..58].copy_from_slice(&xor_output);
 
         EncryptedSecretKey(output)
     }
@@ -251,26 +263,36 @@ impl EncryptedSecretKey {
 
         let salt = &self.0[2..18];
 
-        // Deterministically generate the symmetric key
-        let mut symmetric_key: [u8; 36] = {
-            let params = scrypt::Params::new(log_n, 8, 1, 36).unwrap();
-            let mut key = [0; 36];
-            scrypt::scrypt(password.as_bytes(), salt, &params, &mut key).unwrap();
-            key
-        };
+        let mut symmetric_key: [u8; 40] = Self::symmetric_key(log_n, password, salt);
 
         // Overwrite the symmetric key with the XOR
-        symmetric_key
-            .iter_mut()
-            .zip(self.0[18..54].iter())
-            .for_each(|(x1, x2)| *x1 ^= *x2);
-        let bytes = symmetric_key;
+        Self::xor_into_first(&mut symmetric_key, self.0[18..58].iter());
+        let mut concatenation = symmetric_key;
 
-        if &bytes[32..36] != Self::CHECK_BYTES {
+        // Break up the concatenation
+        let (secret_key, checkarea) = concatenation.split_at_mut(32);
+        let (rand4, checkbytes) = checkarea.split_at_mut(4);
+
+        // XOR the randomized checkbytes with the rand4 to get the checkbytes
+        Self::xor_into_first(checkbytes, &*rand4);
+
+        // Verify the checkbytes
+        if checkbytes != Self::CHECK_BYTES {
             return Err(InnerError::BadPassword.into());
         }
 
-        Ok(SecretKey::from_bytes(bytes[0..32].try_into().unwrap()))
+        Ok(SecretKey::from_bytes(secret_key[..32].try_into().unwrap()))
+    }
+
+    fn symmetric_key(log_n: u8, password: &str, salt: &[u8]) -> [u8; 40] {
+        let params = scrypt::Params::new(log_n, 8, 1, 40).unwrap();
+        let mut key = [0; 40];
+        scrypt::scrypt(password.as_bytes(), salt, &params, &mut key).unwrap();
+        key
+    }
+
+    fn xor_into_first<'a, I: IntoIterator<Item = &'a u8>>(first: &mut [u8], second: I) {
+        first.iter_mut().zip(second).for_each(|(x1, x2)| *x1 ^= *x2);
     }
 
     /// Convert an `EncryptedSecretKey` into the human printable `mocryptsec0` form.
