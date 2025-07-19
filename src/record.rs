@@ -90,7 +90,7 @@ impl Record {
         &self.0
     }
 
-    /// Write a new `Record` to the buffer
+    /// Write a `Record` to the buffer, assembled from the `parts`
     ///
     /// # Errors
     ///
@@ -98,91 +98,19 @@ impl Record {
     /// if reserved flags are set, or if signing fails.
     pub fn write_record<'a>(
         buffer: &'a mut [u8],
-        signing_secret_key: &SecretKey,
         parts: &RecordParts,
     ) -> Result<&'a Record, Error> {
-        let address = match parts.deterministic_nonce {
-            Some(nonce) => {
-                Address::new_deterministic(signing_secret_key.public(), parts.kind, nonce)
-            }
-            None => Address::new_random(signing_secret_key.public(), parts.kind),
-        };
-
-        Self::write_replacement_record(
-            buffer,
-            signing_secret_key,
-            address,
-            parts.timestamp,
-            parts.flags,
-            parts.tag_set,
-            parts.payload,
-        )
-    }
-
-    /// Write a new `Record` to the buffer from component parts with the given address.
-    ///
-    /// # Errors
-    ///
-    /// Returns an `Err` if any data is too long, if the buffer is too small,
-    /// if reserved flags are set, or if signing fails.
-    #[allow(clippy::too_many_arguments)]
-    pub fn write_replacement_record<'a>(
-        buffer: &'a mut [u8],
-        signing_secret_key: &SecretKey,
-        address: Address,
-        timestamp: Timestamp,
-        flags: RecordFlags,
-        tags: &TagSet,
-        payload: &[u8],
-    ) -> Result<&'a Record, Error> {
-        let (len, hasher) = Self::fill_record_sans_signature(
-            buffer,
-            signing_secret_key.public(),
-            address,
-            timestamp,
-            flags,
-            tags,
-            payload,
-        )?;
-
-        // Sign
-        let digest = crate::crypto::Blake3 { h: hasher };
-        let sig = signing_secret_key
-            .to_signing_key()
-            .sign_prehashed(digest, Some(b"Mosaic"))?;
-        buffer[SIG_RANGE].copy_from_slice(sig.to_bytes().as_slice());
-
-        let record = Record::from_inner(&buffer[..len]);
-        if cfg!(debug_assertions) {
-            record.verify()?;
-        }
-
-        Ok(record)
-    }
-
-    // Write a record to the `buffer` sans signature.
-    //
-    // Returns the `len` and the `blake3::Hasher`
-    fn fill_record_sans_signature(
-        buffer: &mut [u8],
-        signing_key: PublicKey,
-        address: Address,
-        timestamp: Timestamp,
-        flags: RecordFlags,
-        tags: &TagSet,
-        payload: &[u8],
-    ) -> Result<(usize, blake3::Hasher), Error> {
         // Data checks
-        if flags | RecordFlags::all() != RecordFlags::all() {
+        if parts.flags | RecordFlags::all() != RecordFlags::all() {
             return Err(InnerError::ReservedFlagsUsed.into());
         }
-        if tags.as_bytes().len() > 65_536 {
+        if parts.tag_set.as_bytes().len() > 65_536 {
             return Err(InnerError::RecordTooLong.into());
         }
 
         // Length checks
-        let padded_tags_len = padded_len!(tags.as_bytes().len());
-        let padded_payload_len = padded_len!(payload.len());
+        let padded_tags_len = padded_len!(parts.tag_set.as_bytes().len());
+        let padded_payload_len = padded_len!(parts.payload.len());
         let len = HEADER_LEN + padded_tags_len + padded_payload_len;
         if len > 1_048_576 {
             return Err(InnerError::RecordTooLong.into());
@@ -193,32 +121,39 @@ impl Record {
 
         let tag_end = HEADER_LEN + padded_tags_len;
 
+        let address = parts.address_data.address();
+
         // Copy in payload
-        buffer[tag_end..tag_end + payload.len()].copy_from_slice(payload);
+        buffer[tag_end..tag_end + parts.payload.len()].copy_from_slice(parts.payload);
 
         // Copy in tags
-        buffer[HEADER_LEN..HEADER_LEN + tags.as_bytes().len()].copy_from_slice(tags.as_bytes());
+        buffer[HEADER_LEN..HEADER_LEN + parts.tag_set.as_bytes().len()]
+            .copy_from_slice(parts.tag_set.as_bytes());
 
         // Write LenP
         #[allow(clippy::cast_possible_truncation)]
-        let payload_len = payload.len() as u32;
+        let payload_len = parts.payload.len() as u32;
         buffer[LEN_P_RANGE].copy_from_slice(payload_len.to_le_bytes().as_slice());
 
         // Write LenT
         #[allow(clippy::cast_possible_truncation)]
-        let tags_len = tags.as_bytes().len() as u16;
+        let tags_len = parts.tag_set.as_bytes().len() as u16;
         buffer[LEN_T_RANGE].copy_from_slice(tags_len.to_le_bytes().as_slice());
 
         // Write flags
-        buffer[FLAGS_RANGE].copy_from_slice(flags.bits().to_le_bytes().as_slice());
+        buffer[FLAGS_RANGE].copy_from_slice(parts.flags.bits().to_le_bytes().as_slice());
 
         // Write timestamp
-        buffer[TIMESTAMP_RANGE].copy_from_slice(timestamp.to_bytes().as_slice());
+        buffer[TIMESTAMP_RANGE].copy_from_slice(parts.timestamp.to_bytes().as_slice());
 
         // Write address
         buffer[ADDR_RANGE].copy_from_slice(address.as_bytes().as_slice());
 
-        // Write signing key
+        // Write the signing key
+        let signing_key = match parts.signing_data {
+            RecordSigningData::SecretKey(ref secret_key) => secret_key.public(),
+            RecordSigningData::PublicKeyAndSignature(signing_key, _) => signing_key,
+        };
         buffer[SIGNING_KEY_RANGE].copy_from_slice(signing_key.as_bytes().as_slice());
 
         // Compute the truehash
@@ -229,9 +164,27 @@ impl Record {
 
         // Write ID
         buffer[ID_HASH_RANGE].copy_from_slice(&truehash[..40]);
-        buffer[ID_TIMESTAMP_RANGE].copy_from_slice(timestamp.to_bytes().as_slice());
+        buffer[ID_TIMESTAMP_RANGE].copy_from_slice(parts.timestamp.to_bytes().as_slice());
 
-        Ok((len, hasher))
+        // Write the signature
+        let sig = match parts.signing_data {
+            RecordSigningData::SecretKey(ref secret_key) => {
+                let digest = crate::crypto::Blake3 { h: hasher };
+                let sig = secret_key
+                    .to_signing_key()
+                    .sign_prehashed(digest, Some(b"Mosaic"))?;
+                sig
+            }
+            RecordSigningData::PublicKeyAndSignature(_, signature) => signature,
+        };
+        buffer[SIG_RANGE].copy_from_slice(sig.to_bytes().as_slice());
+
+        let record = Record::from_inner(&buffer[..len]);
+        if cfg!(debug_assertions) {
+            record.verify()?;
+        }
+
+        Ok(record)
     }
 
     /// Verify invariants. You should not normally need to call this; all code paths
@@ -527,18 +480,19 @@ impl OwnedRecord {
     /// Create a new `OwnedRecord` from component parts.
     ///
     /// ```
-    /// # use mosaic_core::{EMPTY_TAG_SET, Kind, KindFlags, OwnedRecord, RecordFlags, RecordParts, SecretKey, Timestamp};
+    /// # use mosaic_core::{EMPTY_TAG_SET, Kind, KindFlags, OwnedRecord, RecordFlags, RecordParts, SecretKey, Timestamp, RecordSigningData, RecordAddressData};
     /// let mut csprng = rand::rngs::OsRng;
     /// let secret_key = SecretKey::generate(&mut csprng);
+    /// let public_key = secret_key.public();
     /// let mut parts = RecordParts {
-    ///     kind: Kind::EXAMPLE,
-    ///     deterministic_nonce: None,
+    ///     signing_data: RecordSigningData::SecretKey(secret_key),
+    ///     address_data: RecordAddressData::Random(public_key, Kind::EXAMPLE),
     ///     timestamp: Timestamp::now().unwrap(),
     ///     flags: RecordFlags::empty(),
     ///     tag_set: &*EMPTY_TAG_SET,
     ///     payload: &[],
     /// };
-    /// let record = OwnedRecord::new(&secret_key, &parts).unwrap();
+    /// let record = OwnedRecord::new(&parts).unwrap();
     /// ```
     //
     /// # Errors
@@ -546,57 +500,10 @@ impl OwnedRecord {
     /// Returns an `Err` if any data is too long, if reserved flags are set,
     /// or if signing fails.
     #[allow(clippy::missing_panics_doc)]
-    pub fn new(signing_secret_key: &SecretKey, parts: &RecordParts) -> Result<OwnedRecord, Error> {
-        let address = match parts.deterministic_nonce {
-            Some(key) => Address::new_deterministic(signing_secret_key.public(), parts.kind, key),
-            None => Address::new_random(signing_secret_key.public(), parts.kind),
-        };
-
-        Self::new_replacement(
-            signing_secret_key,
-            address,
-            parts.timestamp,
-            parts.flags,
-            parts.tag_set,
-            parts.payload,
-        )
-    }
-
-    /// Create a new `OwnedRecord` from component parts, replacing an existing record
-    /// at the same address
-    ///
-    /// # Errors
-    ///
-    /// Returns an `Err` if any data is too long, if reserved flags are set,
-    /// or if signing fails.
-    #[allow(clippy::missing_panics_doc)]
-    pub fn new_replacement(
-        signing_secret_key: &SecretKey,
-        address: Address,
-        timestamp: Timestamp,
-        flags: RecordFlags,
-        tag_set: &TagSet,
-        payload: &[u8],
-    ) -> Result<OwnedRecord, Error> {
-        if tag_set.as_bytes().len() > 65_536 {
-            return Err(InnerError::RecordTooLong.into());
-        }
-        let padded_tag_set_len = padded_len!(tag_set.as_bytes().len());
-        let padded_payload_len = padded_len!(payload.len());
-        let len = HEADER_LEN + padded_tag_set_len + padded_payload_len;
-        if len > 1_048_576 {
-            return Err(InnerError::RecordTooLong.into());
-        }
+    pub fn new(parts: &RecordParts) -> Result<OwnedRecord, Error> {
+        let len = parts.record_len();
         let mut buffer = vec![0; len];
-        let _ = Record::write_replacement_record(
-            &mut buffer,
-            signing_secret_key,
-            address,
-            timestamp,
-            flags,
-            tag_set,
-            payload,
-        )?;
+        let _record = Record::write_record(&mut buffer, parts)?;
         Ok(OwnedRecord(buffer))
     }
 }
@@ -647,16 +554,50 @@ impl std::fmt::Display for OwnedRecord {
     }
 }
 
+/// Record Signing data, used to assemble a Record
+#[derive(Debug, Clone)]
+pub enum RecordSigningData {
+    /// A `SecretKey`
+    SecretKey(SecretKey),
+
+    /// A `PublicKey` and the `Signature` of the record
+    PublicKeyAndSignature(PublicKey, Signature),
+}
+
+/// Record Address data, used to assemble a Record
+#[derive(Debug, Clone)]
+pub enum RecordAddressData {
+    /// An address
+    Address(Address),
+
+    /// A master `PublicKey`, Kind, and deterministic nonce
+    Deterministic(PublicKey, Kind, Vec<u8>),
+
+    /// A master `PublicKey` and Kind (the nonce will be random)
+    Random(PublicKey, Kind),
+}
+
+impl RecordAddressData {
+    /// Get the address
+    pub fn address(&self) -> Address {
+        match self {
+            &RecordAddressData::Address(a) => a,
+            &RecordAddressData::Deterministic(pk, kind, ref nonce) => {
+                Address::new_deterministic(pk, kind, nonce)
+            }
+            &RecordAddressData::Random(pk, kind) => Address::new_random(pk, kind),
+        }
+    }
+}
+
 /// The parts of a Record
 #[derive(Debug, Clone)]
 pub struct RecordParts<'a> {
-    /// The kind of record
-    pub kind: Kind,
+    /// Signing data
+    pub signing_data: RecordSigningData,
 
-    /// Optionally, a deterministic nonce for the Address. The first 8 bytes
-    /// provided will be used. If less are provided, the remainder will be
-    /// random.
-    pub deterministic_nonce: Option<&'a [u8]>,
+    /// Address data
+    pub address_data: RecordAddressData,
 
     /// The time
     pub timestamp: Timestamp,
@@ -701,18 +642,16 @@ mod test {
         let mut csprng = OsRng;
 
         let signing_secret_key = SecretKey::generate(&mut csprng);
+        let signing_public_key = signing_secret_key.public();
 
-        let r1 = OwnedRecord::new(
-            &signing_secret_key,
-            &RecordParts {
-                kind: Kind::KEY_SCHEDULE,
-                deterministic_nonce: None,
-                timestamp: Timestamp::now().unwrap(),
-                flags: RecordFlags::empty(),
-                tag_set: &*EMPTY_TAG_SET,
-                payload: b"hello world",
-            },
-        )
+        let r1 = OwnedRecord::new(&RecordParts {
+            signing_data: RecordSigningData::SecretKey(signing_secret_key.clone()),
+            address_data: RecordAddressData::Random(signing_public_key, Kind::KEY_SCHEDULE),
+            timestamp: Timestamp::now().unwrap(),
+            flags: RecordFlags::empty(),
+            tag_set: &*EMPTY_TAG_SET,
+            payload: b"hello world",
+        })
         .unwrap();
 
         println!("{r1}");
@@ -723,17 +662,14 @@ mod test {
 
         assert_eq!(*r1, *r2);
 
-        let r3 = OwnedRecord::new(
-            &signing_secret_key,
-            &RecordParts {
-                kind: Kind::KEY_SCHEDULE,
-                deterministic_nonce: None,
-                timestamp: r1.timestamp() + std::time::Duration::from_millis(10),
-                flags: RecordFlags::empty(),
-                tag_set: &*EMPTY_TAG_SET,
-                payload: b"hello world",
-            },
-        )
+        let r3 = OwnedRecord::new(&RecordParts {
+            signing_data: RecordSigningData::SecretKey(signing_secret_key),
+            address_data: RecordAddressData::Random(signing_public_key, Kind::KEY_SCHEDULE),
+            timestamp: r1.timestamp() + std::time::Duration::from_millis(10),
+            flags: RecordFlags::empty(),
+            tag_set: &*EMPTY_TAG_SET,
+            payload: b"hello world",
+        })
         .unwrap();
 
         assert!(r3 > r1)

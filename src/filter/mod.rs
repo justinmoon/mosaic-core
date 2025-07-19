@@ -212,7 +212,10 @@ impl AsMut<Filter> for OwnedFilter {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{Kind, OwnedRecord, RecordFlags, RecordParts, SecretKey, Timestamp, EMPTY_TAG_SET};
+    use crate::{
+        Kind, OwnedRecord, RecordAddressData, RecordFlags, RecordParts, RecordSigningData,
+        SecretKey, Timestamp, EMPTY_TAG_SET,
+    };
 
     #[test]
     fn test_filter() {
@@ -230,32 +233,26 @@ mod test {
         ])
         .unwrap();
 
-        let record = OwnedRecord::new(
-            &secret_key1,
-            &RecordParts {
-                kind: Kind::MICROBLOG_ROOT,
-                deterministic_nonce: None,
-                timestamp: Timestamp::now().unwrap(),
-                flags: RecordFlags::empty(),
-                tag_set: &*EMPTY_TAG_SET,
-                payload: b"Hello World!",
-            },
-        )
+        let record = OwnedRecord::new(&RecordParts {
+            signing_data: RecordSigningData::SecretKey(secret_key1),
+            address_data: RecordAddressData::Random(key1, Kind::MICROBLOG_ROOT),
+            timestamp: Timestamp::now().unwrap(),
+            flags: RecordFlags::empty(),
+            tag_set: &*EMPTY_TAG_SET,
+            payload: b"Hello World!",
+        })
         .unwrap();
 
         assert_eq!(filter.matches(&record).unwrap(), true);
 
-        let record = OwnedRecord::new(
-            &secret_key1,
-            &RecordParts {
-                kind: Kind::CHAT_MESSAGE,
-                deterministic_nonce: None,
-                timestamp: Timestamp::now().unwrap(),
-                flags: RecordFlags::empty(),
-                tag_set: &*EMPTY_TAG_SET,
-                payload: b"Hello World!",
-            },
-        )
+        let record = OwnedRecord::new(&RecordParts {
+            signing_data: RecordSigningData::SecretKey(secret_key2),
+            address_data: RecordAddressData::Random(key2, Kind::CHAT_MESSAGE),
+            timestamp: Timestamp::now().unwrap(),
+            flags: RecordFlags::empty(),
+            tag_set: &*EMPTY_TAG_SET,
+            payload: b"Hello World!",
+        })
         .unwrap();
 
         assert_eq!(filter.matches(&record).unwrap(), false);

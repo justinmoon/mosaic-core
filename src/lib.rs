@@ -94,7 +94,7 @@ mod message;
 pub use message::{Message, MessageType, QueryClosedCode, QueryId, SubmissionResultCode};
 
 mod record;
-pub use record::{OwnedRecord, Record, RecordParts};
+pub use record::{OwnedRecord, Record, RecordAddressData, RecordParts, RecordSigningData};
 
 mod record_flags;
 pub use record_flags::{RecordFlags, SignatureScheme};

@@ -826,7 +826,10 @@ macro_rules! test_filter_element_type {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{OwnedRecord, RecordFlags, RecordParts, SecretKey, EMPTY_TAG_SET};
+    use crate::{
+        OwnedRecord, RecordAddressData, RecordFlags, RecordParts, RecordSigningData, SecretKey,
+        EMPTY_TAG_SET,
+    };
 
     #[test]
     fn test_some_filter_elements() {
@@ -838,7 +841,7 @@ mod test {
         let secret_key2 = SecretKey::generate(&mut csprng);
         let key2 = secret_key2.public();
         let secret_key3 = SecretKey::generate(&mut csprng);
-        // let key3 = secret_key3.public();
+        let key3 = secret_key3.public();
 
         let fe1_ak = OwnedFilterElement::new_author_keys(&[key1, key2]).unwrap();
         test_filter_element_type!(&fe1_ak, FilterElementType::AUTHOR_KEYS);
@@ -848,32 +851,26 @@ mod test {
         let fe2_k = OwnedFilterElement::new_kinds(&[kind1, kind2]).unwrap();
         test_filter_element_type!(&fe2_k, FilterElementType::KINDS);
 
-        let record = OwnedRecord::new(
-            &secret_key1,
-            &RecordParts {
-                kind: Kind::MICROBLOG_ROOT,
-                deterministic_nonce: None,
-                timestamp: Timestamp::now().unwrap(),
-                flags: RecordFlags::empty(),
-                tag_set: &*EMPTY_TAG_SET,
-                payload: b"Hello World!",
-            },
-        )
+        let record = OwnedRecord::new(&RecordParts {
+            signing_data: RecordSigningData::SecretKey(secret_key1),
+            address_data: RecordAddressData::Random(key1, Kind::MICROBLOG_ROOT),
+            timestamp: Timestamp::now().unwrap(),
+            flags: RecordFlags::empty(),
+            tag_set: &*EMPTY_TAG_SET,
+            payload: b"Hello World!",
+        })
         .unwrap();
         assert_eq!(fe1_ak.matches(&record).unwrap(), true);
         assert_eq!(fe2_k.matches(&record).unwrap(), true);
 
-        let record = OwnedRecord::new(
-            &secret_key3,
-            &RecordParts {
-                kind: Kind::CHAT_MESSAGE,
-                deterministic_nonce: None,
-                timestamp: Timestamp::now().unwrap(),
-                flags: RecordFlags::empty(),
-                tag_set: &*EMPTY_TAG_SET,
-                payload: b"Hello World!",
-            },
-        )
+        let record = OwnedRecord::new(&RecordParts {
+            signing_data: RecordSigningData::SecretKey(secret_key3),
+            address_data: RecordAddressData::Random(key3, Kind::CHAT_MESSAGE),
+            timestamp: Timestamp::now().unwrap(),
+            flags: RecordFlags::empty(),
+            tag_set: &*EMPTY_TAG_SET,
+            payload: b"Hello World!",
+        })
         .unwrap();
         assert_eq!(fe1_ak.matches(&record).unwrap(), false);
         assert_eq!(fe2_k.matches(&record).unwrap(), false);
