@@ -135,52 +135,15 @@ impl Record {
         tags: &TagSet,
         payload: &[u8],
     ) -> Result<&'a Record, Error> {
-        if tags.as_bytes().len() > 65_536 {
-            return Err(InnerError::RecordTooLong.into());
-        }
-        let padded_tags_len = padded_len!(tags.as_bytes().len());
-        let padded_payload_len = padded_len!(payload.len());
-        let len = HEADER_LEN + padded_tags_len + padded_payload_len;
-        if len > 1_048_576 {
-            return Err(InnerError::RecordTooLong.into());
-        }
-        if buffer.len() < len {
-            return Err(InnerError::EndOfOutput.into());
-        }
-
-        if flags | RecordFlags::all() != RecordFlags::all() {
-            return Err(InnerError::ReservedFlagsUsed.into());
-        }
-
-        let tag_end = HEADER_LEN + padded_tags_len;
-
-        buffer[tag_end..tag_end + payload.len()].copy_from_slice(payload);
-
-        buffer[HEADER_LEN..HEADER_LEN + tags.as_bytes().len()].copy_from_slice(tags.as_bytes());
-
-        #[allow(clippy::cast_possible_truncation)]
-        let payload_len = payload.len() as u32;
-        buffer[LEN_P_RANGE].copy_from_slice(payload_len.to_le_bytes().as_slice());
-
-        #[allow(clippy::cast_possible_truncation)]
-        let tags_len = tags.as_bytes().len() as u16;
-        buffer[LEN_T_RANGE].copy_from_slice(tags_len.to_le_bytes().as_slice());
-
-        buffer[TIMESTAMP_RANGE].copy_from_slice(timestamp.to_bytes().as_slice());
-
-        buffer[FLAGS_RANGE].copy_from_slice(flags.bits().to_le_bytes().as_slice());
-
-        buffer[ADDR_RANGE].copy_from_slice(address.as_bytes().as_slice());
-
-        let public_key = signing_secret_key.public();
-        buffer[SIGNING_KEY_RANGE].copy_from_slice(public_key.as_bytes().as_slice());
-
-        let mut truehash: [u8; 64] = [0; 64];
-        let mut hasher = blake3::Hasher::new();
-        let _ = hasher.update(&buffer[HASHABLE_RANGE]);
-        hasher.finalize_xof().fill(&mut truehash[..]);
-        buffer[ID_HASH_RANGE].copy_from_slice(&truehash[..40]);
-        buffer[ID_TIMESTAMP_RANGE].copy_from_slice(timestamp.to_bytes().as_slice());
+        let (len, hasher) = Self::fill_record_sans_signature(
+            buffer,
+            signing_secret_key.public(),
+            address,
+            timestamp,
+            flags,
+            tags,
+            payload,
+        )?;
 
         // Sign
         let digest = crate::crypto::Blake3 { h: hasher };
@@ -195,6 +158,80 @@ impl Record {
         }
 
         Ok(record)
+    }
+
+    // Write a record to the `buffer` sans signature.
+    //
+    // Returns the `len` and the `blake3::Hasher`
+    fn fill_record_sans_signature(
+        buffer: &mut [u8],
+        signing_key: PublicKey,
+        address: Address,
+        timestamp: Timestamp,
+        flags: RecordFlags,
+        tags: &TagSet,
+        payload: &[u8],
+    ) -> Result<(usize, blake3::Hasher), Error> {
+        // Data checks
+        if flags | RecordFlags::all() != RecordFlags::all() {
+            return Err(InnerError::ReservedFlagsUsed.into());
+        }
+        if tags.as_bytes().len() > 65_536 {
+            return Err(InnerError::RecordTooLong.into());
+        }
+
+        // Length checks
+        let padded_tags_len = padded_len!(tags.as_bytes().len());
+        let padded_payload_len = padded_len!(payload.len());
+        let len = HEADER_LEN + padded_tags_len + padded_payload_len;
+        if len > 1_048_576 {
+            return Err(InnerError::RecordTooLong.into());
+        }
+        if buffer.len() < len {
+            return Err(InnerError::EndOfOutput.into());
+        }
+
+        let tag_end = HEADER_LEN + padded_tags_len;
+
+        // Copy in payload
+        buffer[tag_end..tag_end + payload.len()].copy_from_slice(payload);
+
+        // Copy in tags
+        buffer[HEADER_LEN..HEADER_LEN + tags.as_bytes().len()].copy_from_slice(tags.as_bytes());
+
+        // Write LenP
+        #[allow(clippy::cast_possible_truncation)]
+        let payload_len = payload.len() as u32;
+        buffer[LEN_P_RANGE].copy_from_slice(payload_len.to_le_bytes().as_slice());
+
+        // Write LenT
+        #[allow(clippy::cast_possible_truncation)]
+        let tags_len = tags.as_bytes().len() as u16;
+        buffer[LEN_T_RANGE].copy_from_slice(tags_len.to_le_bytes().as_slice());
+
+        // Write flags
+        buffer[FLAGS_RANGE].copy_from_slice(flags.bits().to_le_bytes().as_slice());
+
+        // Write timestamp
+        buffer[TIMESTAMP_RANGE].copy_from_slice(timestamp.to_bytes().as_slice());
+
+        // Write address
+        buffer[ADDR_RANGE].copy_from_slice(address.as_bytes().as_slice());
+
+        // Write signing key
+        buffer[SIGNING_KEY_RANGE].copy_from_slice(signing_key.as_bytes().as_slice());
+
+        // Compute the truehash
+        let mut truehash: [u8; 64] = [0; 64];
+        let mut hasher = blake3::Hasher::new();
+        let _ = hasher.update(&buffer[HASHABLE_RANGE]);
+        hasher.finalize_xof().fill(&mut truehash[..]);
+
+        // Write ID
+        buffer[ID_HASH_RANGE].copy_from_slice(&truehash[..40]);
+        buffer[ID_TIMESTAMP_RANGE].copy_from_slice(timestamp.to_bytes().as_slice());
+
+        Ok((len, hasher))
     }
 
     /// Verify invariants. You should not normally need to call this; all code paths
