@@ -238,24 +238,24 @@ mod test {
             address_data: RecordAddressData::Random(key1, Kind::MICROBLOG_ROOT),
             timestamp: Timestamp::now().unwrap(),
             flags: RecordFlags::empty(),
-            tag_set: &*EMPTY_TAG_SET,
+            tag_set: &EMPTY_TAG_SET,
             payload: b"Hello World!",
         })
         .unwrap();
 
-        assert_eq!(filter.matches(&record).unwrap(), true);
+        assert!(filter.matches(&record).unwrap());
 
         let record = OwnedRecord::new(&RecordParts {
             signing_data: RecordSigningData::SecretKey(secret_key2),
             address_data: RecordAddressData::Random(key2, Kind::CHAT_MESSAGE),
             timestamp: Timestamp::now().unwrap(),
             flags: RecordFlags::empty(),
-            tag_set: &*EMPTY_TAG_SET,
+            tag_set: &EMPTY_TAG_SET,
             payload: b"Hello World!",
         })
         .unwrap();
 
-        assert_eq!(filter.matches(&record).unwrap(), false);
+        assert!(!filter.matches(&record).unwrap());
     }
 
     #[test]
@@ -268,10 +268,10 @@ mod test {
             ])
             .unwrap(),
             &OwnedFilterElement::new_since(
-                Timestamp::from_nanoseconds(1749511490000000000).unwrap(),
+                Timestamp::from_nanoseconds(1_749_511_490_000_000_000).unwrap(),
             ),
             &OwnedFilterElement::new_until(
-                Timestamp::from_nanoseconds(1749511497777700000).unwrap(),
+                Timestamp::from_nanoseconds(1_749_511_497_777_700_000).unwrap(),
             ),
         ])
         .unwrap();

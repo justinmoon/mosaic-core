@@ -274,11 +274,11 @@ mod test {
     #[test]
     fn test_timestamp() {
         // Test a date in 1986 (14 leap seconds elapsed)
-        let timestamp = Timestamp::from_unixtime(500000000, 987__000_000).unwrap();
+        let timestamp = Timestamp::from_unixtime(500_000_000, 987_000_000).unwrap();
         assert_eq!(timestamp.as_nanoseconds(), 500_000_014_987_000_000);
 
         // Test a date in 2024 (28 leap seconds elapsed)
-        let timestamp = Timestamp::from_unixtime(1732950200, 100_000_000).unwrap();
+        let timestamp = Timestamp::from_unixtime(1_732_950_200, 100_000_000).unwrap();
         assert_eq!(timestamp.as_nanoseconds(), 1_732_950_228_100_000_000);
 
         // convert to and from a slice and compare
@@ -293,7 +293,7 @@ mod test {
     #[test]
     fn test_timestamp_unixtime_conversions() {
         // Trial 10 seconds before and after the 4th leapsecond
-        for u in 126230400 - 10..126230400 + 10 {
+        for u in 126_230_400 - 10..126_230_400 + 10 {
             let ts = Timestamp::from_unixtime(u, 500_000_000).unwrap();
             println!("{ts:?}"); // so you can see the leap
             let (u2, _) = ts.to_unixtime();

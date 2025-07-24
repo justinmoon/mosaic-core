@@ -358,7 +358,7 @@ mod test {
         let encrypted_secret_key =
             EncryptedSecretKey::from_secret_key(&secret_key, "testing123", 18, &mut csprng);
 
-        println!("{}", encrypted_secret_key);
+        println!("{encrypted_secret_key}");
 
         let secret_key2 = encrypted_secret_key.to_secret_key("testing123").unwrap();
         assert_eq!(secret_key, secret_key2);

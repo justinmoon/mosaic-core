@@ -170,10 +170,9 @@ impl Record {
         let sig = match parts.signing_data {
             RecordSigningData::SecretKey(ref secret_key) => {
                 let digest = crate::crypto::Blake3 { h: hasher };
-                let sig = secret_key
+                secret_key
                     .to_signing_key()
-                    .sign_prehashed(digest, Some(b"Mosaic"))?;
-                sig
+                    .sign_prehashed(digest, Some(b"Mosaic"))?
             }
             RecordSigningData::PublicKeyAndSignature(_, signature) => signature,
         };
@@ -579,13 +578,14 @@ pub enum RecordAddressData {
 
 impl RecordAddressData {
     /// Get the address
+    #[must_use]
     pub fn address(&self) -> Address {
-        match self {
-            &RecordAddressData::Address(a) => a,
-            &RecordAddressData::Deterministic(pk, kind, ref nonce) => {
+        match *self {
+            RecordAddressData::Address(a) => a,
+            RecordAddressData::Deterministic(pk, kind, ref nonce) => {
                 Address::new_deterministic(pk, kind, nonce)
             }
-            &RecordAddressData::Random(pk, kind) => Address::new_random(pk, kind),
+            RecordAddressData::Random(pk, kind) => Address::new_random(pk, kind),
         }
     }
 }
@@ -649,7 +649,7 @@ mod test {
             address_data: RecordAddressData::Random(signing_public_key, Kind::KEY_SCHEDULE),
             timestamp: Timestamp::now().unwrap(),
             flags: RecordFlags::empty(),
-            tag_set: &*EMPTY_TAG_SET,
+            tag_set: &EMPTY_TAG_SET,
             payload: b"hello world",
         })
         .unwrap();
@@ -667,11 +667,11 @@ mod test {
             address_data: RecordAddressData::Random(signing_public_key, Kind::KEY_SCHEDULE),
             timestamp: r1.timestamp() + std::time::Duration::from_millis(10),
             flags: RecordFlags::empty(),
-            tag_set: &*EMPTY_TAG_SET,
+            tag_set: &EMPTY_TAG_SET,
             payload: b"hello world",
         })
         .unwrap();
 
-        assert!(r3 > r1)
+        assert!(r3 > r1);
     }
 }

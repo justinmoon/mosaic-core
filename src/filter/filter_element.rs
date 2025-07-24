@@ -856,33 +856,35 @@ mod test {
             address_data: RecordAddressData::Random(key1, Kind::MICROBLOG_ROOT),
             timestamp: Timestamp::now().unwrap(),
             flags: RecordFlags::empty(),
-            tag_set: &*EMPTY_TAG_SET,
+            tag_set: &EMPTY_TAG_SET,
             payload: b"Hello World!",
         })
         .unwrap();
-        assert_eq!(fe1_ak.matches(&record).unwrap(), true);
-        assert_eq!(fe2_k.matches(&record).unwrap(), true);
+        assert!(fe1_ak.matches(&record).unwrap());
+        assert!(fe2_k.matches(&record).unwrap());
 
         let record = OwnedRecord::new(&RecordParts {
             signing_data: RecordSigningData::SecretKey(secret_key3),
             address_data: RecordAddressData::Random(key3, Kind::CHAT_MESSAGE),
             timestamp: Timestamp::now().unwrap(),
             flags: RecordFlags::empty(),
-            tag_set: &*EMPTY_TAG_SET,
+            tag_set: &EMPTY_TAG_SET,
             payload: b"Hello World!",
         })
         .unwrap();
-        assert_eq!(fe1_ak.matches(&record).unwrap(), false);
-        assert_eq!(fe2_k.matches(&record).unwrap(), false);
+        assert!(!fe1_ak.matches(&record).unwrap());
+        assert!(!fe2_k.matches(&record).unwrap());
 
         // TBD: This test could be far more complete
     }
 
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn test_filter_element_iters() {
-        use rand::rngs::OsRng;
-        let mut csprng = OsRng;
         use crate::OwnedTag;
+        use rand::rngs::OsRng;
+
+        let mut csprng = OsRng;
 
         let secret_key1 = SecretKey::generate(&mut csprng);
         let key1 = secret_key1.public();

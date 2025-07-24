@@ -204,7 +204,7 @@ mod test {
         tag_set.add_tag(&t1);
         let t2 = OwnedTag::new_reply(&reference, kind);
         tag_set.add_tag(&t2);
-        let t3 = OwnedTag::new_content_segment_image(&url, offset);
+        let t3 = OwnedTag::new_content_segment_image(url, offset);
         tag_set.add_tag(&t3);
 
         let mut iter = tag_set.iter();
@@ -230,7 +230,7 @@ mod test {
             3, 4, 5, // data
         ];
 
-        let tag_set = TagSet::from_bytes(&*example).unwrap();
+        let tag_set = TagSet::from_bytes(&example).unwrap();
         let mut iter = tag_set.iter();
 
         let tag0 = iter.next().unwrap();
@@ -252,7 +252,7 @@ mod test {
 
         let secret_key = SecretKey::generate(&mut csprng);
 
-        let tags = vec![
+        let tags = [
             OwnedTag::new_notify_public_key(&secret_key.public()),
             OwnedTag::new_nostr_sister(&[0; 32]),
             OwnedTag::new(TagType(100), b"testing").unwrap(),

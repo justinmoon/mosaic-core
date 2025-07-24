@@ -719,21 +719,21 @@ mod test {
         assert_eq!(v.get_offset().unwrap(), offset);
 
         let v = test_tag_type!(
-            OwnedTag::new_content_segment_url(&url, offset),
+            OwnedTag::new_content_segment_url(url, offset),
             TagType::CONTENT_SEGMENT_URL
         );
         assert_eq!(v.get_url().unwrap().unwrap(), url);
         assert_eq!(v.get_offset().unwrap(), offset);
 
         let v = test_tag_type!(
-            OwnedTag::new_content_segment_image(&url, offset),
+            OwnedTag::new_content_segment_image(url, offset),
             TagType::CONTENT_SEGMENT_IMAGE
         );
         assert_eq!(v.get_url().unwrap().unwrap(), url);
         assert_eq!(v.get_offset().unwrap(), offset);
 
         let v = test_tag_type!(
-            OwnedTag::new_content_segment_video(&url, offset),
+            OwnedTag::new_content_segment_video(url, offset),
             TagType::CONTENT_SEGMENT_VIDEO
         );
         assert_eq!(v.get_url().unwrap().unwrap(), url);
