@@ -52,6 +52,7 @@
     missing_copy_implementations,
     missing_docs
 )]
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
 macro_rules! padded_len {
     ($len:expr) => {
