@@ -1,11 +1,11 @@
 use crate::{Error, InnerError, Kind, PublicKey, Reference};
-#[cfg(feature = "json")]
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use std::ops::{Deref, DerefMut};
 
 /// A type of tag
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "json", derive(Deserialize, Serialize))]
+#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 pub struct TagType(pub u16);
 
 impl TagType {

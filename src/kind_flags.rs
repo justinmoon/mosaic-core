@@ -1,10 +1,10 @@
 use bitflags::bitflags;
-#[cfg(feature = "json")]
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 /// How to handle events with duplicate Addresses
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "json", derive(Deserialize, Serialize))]
+#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 pub enum DuplicateHandling {
     /// Unique: All events should have unique addresses, however duplicates should be
     /// preserved and treated like `Versioned`
@@ -50,7 +50,7 @@ impl DuplicateHandling {
 
 /// Who servers should allow to read this record
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "json", derive(Deserialize, Serialize))]
+#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 pub enum ReadAccess {
     /// Only the author should be able to read back this record
     AuthorOnly,
@@ -92,7 +92,7 @@ impl ReadAccess {
 
 /// Kind flags
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "json", derive(Deserialize, Serialize))]
+#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 pub struct KindFlags(u16);
 
 bitflags! {
