@@ -68,8 +68,6 @@ pub use rand;
 mod address;
 pub use address::Address;
 
-mod crypto;
-
 mod error;
 pub use error::{Error, InnerError};
 
@@ -79,11 +77,13 @@ pub use filter::{
     FilterElementType, OwnedFilter, OwnedFilterElement,
 };
 
+mod hash;
+
 mod id;
 pub use id::Id;
 
-mod keys;
-pub use keys::{EncryptedSecretKey, PublicKey, SecretKey};
+mod signature;
+pub use signature::{EncryptedSecretKey, PublicKey, SecretKey};
 
 mod kind;
 pub use kind::Kind;

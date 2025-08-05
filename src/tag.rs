@@ -654,7 +654,7 @@ macro_rules! test_tag_type {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::keys::*;
+    use crate::signature::*;
     use crate::{DuplicateHandling, KindFlags, ReadAccess};
 
     #[test]

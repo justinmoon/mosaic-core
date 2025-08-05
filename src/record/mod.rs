@@ -173,7 +173,7 @@ impl Record {
         // Write the signature
         let sig = match parts.signing_data {
             RecordSigningData::SecretKey(ref secret_key) => {
-                let digest = crate::crypto::Blake3 { h: hasher };
+                let digest = crate::hash::Blake3 { h: hasher };
                 secret_key
                     .to_signing_key()
                     .sign_prehashed(digest, Some(b"Mosaic"))?
@@ -241,7 +241,7 @@ impl Record {
 
         // Verify the signature
         let signature = Signature::from_slice(&self.0[SIG_RANGE])?;
-        let digest = crate::crypto::Blake3 { h: hasher };
+        let digest = crate::hash::Blake3 { h: hasher };
         signing_public_key
             .to_verifying_key()
             .verify_prehashed_strict(digest, Some(b"Mosaic"), &signature)?;
