@@ -348,7 +348,7 @@ impl FilterElement {
 
     /// Iterate over the keys
     #[must_use]
-    pub fn keys(&self) -> Option<FeKeysIter> {
+    pub fn keys(&self) -> Option<FeKeysIter<'_>> {
         match self.get_type() {
             FilterElementType::AUTHOR_KEYS | FilterElementType::SIGNING_KEYS => Some(FeKeysIter {
                 fe: self,
@@ -360,7 +360,7 @@ impl FilterElement {
 
     /// Iterate over the `Kind`s
     #[must_use]
-    pub fn kinds(&self) -> Option<FeKindsIter> {
+    pub fn kinds(&self) -> Option<FeKindsIter<'_>> {
         match self.get_type() {
             FilterElementType::KINDS => Some(FeKindsIter {
                 fe: self,
@@ -372,7 +372,7 @@ impl FilterElement {
 
     /// Iterate over the `Timestamp`s
     #[must_use]
-    pub fn timestamps(&self) -> Option<FeTimestampsIter> {
+    pub fn timestamps(&self) -> Option<FeTimestampsIter<'_>> {
         match self.get_type() {
             FilterElementType::TIMESTAMPS => Some(FeTimestampsIter {
                 fe: self,
@@ -384,7 +384,7 @@ impl FilterElement {
 
     /// Iterate over the `Tag`s
     #[must_use]
-    pub fn tags(&self) -> Option<FeTagsIter> {
+    pub fn tags(&self) -> Option<FeTagsIter<'_>> {
         match self.get_type() {
             FilterElementType::INCLUDED_TAGS | FilterElementType::EXCLUDED_TAGS => {
                 Some(FeTagsIter {
@@ -428,7 +428,7 @@ impl FilterElement {
 
     /// Iterate over the `Id`s
     #[must_use]
-    pub fn ids(&self) -> Option<FeIdPrefixesIter> {
+    pub fn ids(&self) -> Option<FeIdPrefixesIter<'_>> {
         match self.get_type() {
             FilterElementType::EXCLUDE => Some(FeIdPrefixesIter {
                 fe: self,
