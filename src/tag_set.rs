@@ -181,13 +181,11 @@ mod test {
     use super::*;
     use crate::{DuplicateHandling, KindFlags, ReadAccess};
     use crate::{Kind, OwnedTag, Reference, SecretKey, TagType};
-    use rand::rngs::OsRng;
 
     #[test]
     fn test_tags() {
         let public_key = {
-            let mut csprng = OsRng;
-            let secret_key = SecretKey::generate(&mut csprng);
+            let secret_key = SecretKey::generate();
             secret_key.public()
         };
         let reference = {
@@ -251,9 +249,7 @@ mod test {
 
     #[test]
     fn test_owned_tag_set_from_owned_tags() {
-        let mut csprng = OsRng;
-
-        let secret_key = SecretKey::generate(&mut csprng);
+        let secret_key = SecretKey::generate();
 
         let tags = [
             OwnedTag::new_notify_public_key(&secret_key.public()),

@@ -1,5 +1,5 @@
 use crate::{Error, InnerError, Kind, PublicKey, Reference};
-use rand_core::{OsRng, RngCore};
+use rand::RngCore;
 
 /// An Address identifies a record group where the latest one in
 /// the group is the current valid record and the previous ones
@@ -48,7 +48,7 @@ impl Address {
     #[must_use]
     pub fn new_random(author_public_key: PublicKey, kind: Kind) -> Address {
         let mut nonce: [u8; 8] = [0; 8];
-        OsRng.fill_bytes(&mut nonce);
+        rand::rng().fill_bytes(&mut nonce);
         Self::from_parts(author_public_key, kind, &nonce)
     }
 

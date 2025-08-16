@@ -484,8 +484,7 @@ impl OwnedRecord {
     ///
     /// ```
     /// # use mosaic_core::{EMPTY_TAG_SET, Kind, KindFlags, OwnedRecord, RecordFlags, RecordParts, SecretKey, Timestamp, RecordSigningData, RecordAddressData};
-    /// let mut csprng = rand::rngs::OsRng;
-    /// let secret_key = SecretKey::generate(&mut csprng);
+    /// let secret_key = SecretKey::generate();
     /// let public_key = secret_key.public();
     /// let mut parts = RecordParts {
     ///     signing_data: RecordSigningData::SecretKey(secret_key),
@@ -641,11 +640,7 @@ mod test {
 
     #[test]
     fn test_record() {
-        use rand::rngs::OsRng;
-
-        let mut csprng = OsRng;
-
-        let signing_secret_key = SecretKey::generate(&mut csprng);
+        let signing_secret_key = SecretKey::generate();
         let signing_public_key = signing_secret_key.public();
 
         let r1 = OwnedRecord::new(&RecordParts {

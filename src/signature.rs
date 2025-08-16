@@ -1,5 +1,6 @@
 use crate::{DalekSigningKey, DalekVerifyingKey};
 use crate::{Error, InnerError};
+use rand::RngCore;
 
 /// A public signing key representing a server or user,
 /// whether a master key or subkey.
@@ -132,11 +133,11 @@ impl SecretKey {
     /// For example:
     /// ```
     /// # use mosaic_core::SecretKey;
-    /// let mut csprng = rand::rngs::OsRng;
-    /// let secret_key = SecretKey::generate(&mut csprng);
+    /// let secret_key = SecretKey::generate();
     /// ```
-    pub fn generate<R: rand_core::CryptoRngCore + ?Sized>(csprng: &mut R) -> SecretKey {
-        SecretKey(DalekSigningKey::generate(csprng).to_bytes())
+    pub fn generate() -> SecretKey {
+        let mut osrng = scrypt::password_hash::rand_core::OsRng;
+        SecretKey(DalekSigningKey::generate(&mut osrng).to_bytes())
     }
 
     /// Compute the `PublicKey` that matchies this `SecretKey`
@@ -203,11 +204,10 @@ impl EncryptedSecretKey {
 
     /// Encrypt a `SecretKey` into an `EncryptedSecretKey`
     #[allow(clippy::missing_panics_doc)]
-    pub fn from_secret_key<R: rand_core::CryptoRngCore + ?Sized>(
+    pub fn from_secret_key(
         secret_key: &SecretKey,
         password: &str,
-        log_n: u8,
-        csprng: &mut R,
+        log_n: u8
     ) -> EncryptedSecretKey {
         let mut output = vec![0; 58];
         output[0] = 0x01;
@@ -215,14 +215,14 @@ impl EncryptedSecretKey {
 
         // Fill salt
         let salt = {
-            csprng.as_rngcore().fill_bytes(&mut output[2..18]);
+            rand::rng().fill_bytes(&mut output[2..18]);
             &output[2..18]
         };
 
         let mut symmetric_key: [u8; 40] = Self::symmetric_key(log_n, password, salt);
 
         let mut rand4 = vec![0; 4];
-        csprng.as_rngcore().fill_bytes(&mut rand4);
+        rand::rng().fill_bytes(&mut rand4);
 
         let mut randomized_checkbytes = rand4.clone();
         Self::xor_into_first(&mut randomized_checkbytes, Self::CHECK_BYTES.iter());
@@ -336,11 +336,8 @@ mod test {
     #[test]
     fn test_generate() {
         use crate::SecretKey;
-        use rand::rngs::OsRng;
 
-        let mut csprng = OsRng;
-
-        let secret_key = SecretKey::generate(&mut csprng);
+        let secret_key = SecretKey::generate();
         let public_key = secret_key.public();
 
         println!("public: {public_key}");
@@ -350,13 +347,10 @@ mod test {
     #[test]
     fn test_encrypted_secret_key() {
         use crate::{EncryptedSecretKey, SecretKey};
-        use rand::rngs::OsRng;
 
-        let mut csprng = OsRng;
-
-        let secret_key = SecretKey::generate(&mut csprng);
+        let secret_key = SecretKey::generate();
         let encrypted_secret_key =
-            EncryptedSecretKey::from_secret_key(&secret_key, "testing123", 18, &mut csprng);
+            EncryptedSecretKey::from_secret_key(&secret_key, "testing123", 18);
 
         println!("{encrypted_secret_key}");
 

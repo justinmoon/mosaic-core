@@ -833,14 +833,11 @@ mod test {
 
     #[test]
     fn test_some_filter_elements() {
-        use rand::rngs::OsRng;
-        let mut csprng = OsRng;
-
-        let secret_key1 = SecretKey::generate(&mut csprng);
+        let secret_key1 = SecretKey::generate();
         let key1 = secret_key1.public();
-        let secret_key2 = SecretKey::generate(&mut csprng);
+        let secret_key2 = SecretKey::generate();
         let key2 = secret_key2.public();
-        let secret_key3 = SecretKey::generate(&mut csprng);
+        let secret_key3 = SecretKey::generate();
         let key3 = secret_key3.public();
 
         let fe1_ak = OwnedFilterElement::new_author_keys(&[key1, key2]).unwrap();
@@ -882,15 +879,12 @@ mod test {
     #[allow(clippy::too_many_lines)]
     fn test_filter_element_iters() {
         use crate::OwnedTag;
-        use rand::rngs::OsRng;
 
-        let mut csprng = OsRng;
-
-        let secret_key1 = SecretKey::generate(&mut csprng);
+        let secret_key1 = SecretKey::generate();
         let key1 = secret_key1.public();
-        let secret_key2 = SecretKey::generate(&mut csprng);
+        let secret_key2 = SecretKey::generate();
         let key2 = secret_key2.public();
-        let secret_key3 = SecretKey::generate(&mut csprng);
+        let secret_key3 = SecretKey::generate();
         let key3 = secret_key3.public();
 
         // author_keys

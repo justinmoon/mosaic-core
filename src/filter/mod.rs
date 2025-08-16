@@ -219,12 +219,9 @@ mod test {
 
     #[test]
     fn test_filter() {
-        use rand::rngs::OsRng;
-        let mut csprng = OsRng;
-
-        let secret_key1 = SecretKey::generate(&mut csprng);
+        let secret_key1 = SecretKey::generate();
         let key1 = secret_key1.public();
-        let secret_key2 = SecretKey::generate(&mut csprng);
+        let secret_key2 = SecretKey::generate();
         let key2 = secret_key2.public();
 
         let filter = OwnedFilter::new(&[

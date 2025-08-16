@@ -661,9 +661,7 @@ mod test {
     fn test_tags() {
         // Setup sample data
         let public_key = {
-            use rand::rngs::OsRng;
-            let mut csprng = OsRng;
-            let secret_key = SecretKey::generate(&mut csprng);
+            let secret_key = SecretKey::generate();
             secret_key.public()
         };
         let reference = {
