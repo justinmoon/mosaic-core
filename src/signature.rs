@@ -135,6 +135,7 @@ impl SecretKey {
     /// # use mosaic_core::SecretKey;
     /// let secret_key = SecretKey::generate();
     /// ```
+    #[must_use]
     pub fn generate() -> SecretKey {
         let mut osrng = scrypt::password_hash::rand_core::OsRng;
         SecretKey(DalekSigningKey::generate(&mut osrng).to_bytes())
@@ -204,10 +205,11 @@ impl EncryptedSecretKey {
 
     /// Encrypt a `SecretKey` into an `EncryptedSecretKey`
     #[allow(clippy::missing_panics_doc)]
+    #[must_use]
     pub fn from_secret_key(
         secret_key: &SecretKey,
         password: &str,
-        log_n: u8
+        log_n: u8,
     ) -> EncryptedSecretKey {
         let mut output = vec![0; 58];
         output[0] = 0x01;

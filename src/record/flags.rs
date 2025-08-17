@@ -5,11 +5,11 @@ use serde::{Deserialize, Serialize};
 /// Server usage flags
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
-pub struct RecordFlags(u16);
+pub struct RecordFlags(u64);
 
 bitflags! {
     /// Record Flags
-    impl RecordFlags: u16 {
+    impl RecordFlags: u64 {
         /// The payload is compressed with Zstd
         const ZSTD = 0x01;
 
@@ -61,18 +61,18 @@ pub enum SignatureScheme {
 }
 
 impl RecordFlags {
-    const MASK: u16 = 0b1100_0000;
+    const SIG_SCHEME_MASK: u64 = 0b1100_0000;
 
     /// Set the signature scheme
     pub fn set_signature_scheme(&mut self, scheme: SignatureScheme) {
-        let bits: u16 = (scheme as u16) << 6;
-        self.0 = (self.0 & !Self::MASK) | bits;
+        let bits: u64 = (scheme as u64) << 6;
+        self.0 = (self.0 & !Self::SIG_SCHEME_MASK) | bits;
     }
 
     /// Get the signature scheme
     #[must_use]
     pub fn get_signature_scheme(&self) -> SignatureScheme {
-        match (self.0 & Self::MASK) >> 6 {
+        match (self.0 & Self::SIG_SCHEME_MASK) >> 6 {
             0 => SignatureScheme::Ed25519,
             1 => SignatureScheme::Secp256k1,
             2 => SignatureScheme::Reserved2,
