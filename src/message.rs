@@ -4,6 +4,9 @@ use crate::{Error, Filter, Id, InnerError, Record, Reference};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum MessageType {
+    /// Client hello
+    Hello = 0x10,
+
     /// Client request for records specified by references
     Get = 0x1,
 
@@ -19,6 +22,9 @@ pub enum MessageType {
 
     /// Client submission of a record
     Submission = 0x5,
+
+    /// Server response to Hello
+    HelloAck = 0x90,
 
     /// Server response with a record
     Record = 0x80,
@@ -46,10 +52,12 @@ impl MessageType {
             0x3 => Some(MessageType::Subscribe),
             0x4 => Some(MessageType::Unsubscribe),
             0x5 => Some(MessageType::Submission),
+            0x10 => Some(MessageType::Hello),
             0x80 => Some(MessageType::Record),
             0x81 => Some(MessageType::LocallyComplete),
             0x82 => Some(MessageType::QueryClosed),
             0x83 => Some(MessageType::SubmissionResult),
+            0x90 => Some(MessageType::HelloAck),
             0xF0 => Some(MessageType::Unrecognized),
             _ => None,
         }
@@ -208,7 +216,13 @@ impl Message {
             if len == bytes.len() {
                 let t = MessageType::from_u8(bytes[0])
                     .ok_or::<Error>(InnerError::InvalidMessage.into())?;
+                #[allow(clippy::match_same_arms)]
                 match t {
+                    MessageType::Hello => {
+                        if len % 4 != 0 {
+                            return Err(InnerError::InvalidMessage.into());
+                        }
+                    }
                     MessageType::Get => {
                         if (len - 8) % 48 != 0 {
                             return Err(InnerError::InvalidMessage.into());
@@ -234,6 +248,11 @@ impl Message {
                     }
                     MessageType::Submission => {
                         let _ = Record::from_bytes(&bytes[8..])?;
+                    }
+                    MessageType::HelloAck => {
+                        if len % 4 != 0 {
+                            return Err(InnerError::InvalidMessage.into());
+                        }
                     }
                     MessageType::Record => {
                         let _ = Record::from_bytes(&bytes[8..])?;
@@ -294,7 +313,29 @@ impl Message {
         (self.0[1] as usize) + ((self.0[2] as usize) << 8) + ((self.0[3] as usize) << 16)
     }
 
-    /// Create a Get Message
+    /// Create a new `Hello` `Message`
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if there are too many application IDs
+    pub fn new_hello(max_version: u32, applications: &[u32]) -> Result<Message, Error> {
+        let len = 8 + 4 * applications.len();
+        if len >= 1 << 24 {
+            return Err(InnerError::DataTooLong.into());
+        }
+        let mut bytes = vec![0_u8; len];
+        bytes[0] = MessageType::Hello as u8;
+        #[allow(clippy::cast_possible_truncation)]
+        let len_bytes = (len as u32).to_le_bytes();
+        bytes[1..4].copy_from_slice(&len_bytes.as_slice()[..3]);
+        bytes[4..8].copy_from_slice(max_version.to_le_bytes().as_slice());
+        for (i, app) in applications.iter().enumerate() {
+            bytes[8 + i * 4..8 + (i + 1) * 4].copy_from_slice(app.to_le_bytes().as_slice());
+        }
+        Ok(Message(bytes))
+    }
+
+    /// Create a new `Get` `Message`
     ///
     /// # Errors
     ///
@@ -316,7 +357,7 @@ impl Message {
         Ok(Message(bytes))
     }
 
-    /// Create a new Query Message
+    /// Create a new `Query` `Message`
     ///
     /// # Errors
     ///
@@ -337,7 +378,7 @@ impl Message {
         Ok(Message(bytes))
     }
 
-    /// Create a new Subscribe Message
+    /// Create a new `Subscribe` `Message`
     ///
     /// # Errors
     ///
@@ -358,7 +399,7 @@ impl Message {
         Ok(Message(bytes))
     }
 
-    /// Create a new Unsubscribe Message
+    /// Create a new `Unsubscribe` `Message`
     #[must_use]
     pub fn new_unsubscribe(query_id: QueryId) -> Message {
         let len = 8;
@@ -371,7 +412,7 @@ impl Message {
         Message(bytes)
     }
 
-    /// Create a new Submission Message
+    /// Create a new `Submission` `Message`
     ///
     /// # Errors
     ///
@@ -391,7 +432,29 @@ impl Message {
         Ok(Message(bytes))
     }
 
-    /// Create a new Record Message
+    /// Create a new `HelloAck` `Message`
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if there are too many application IDs
+    pub fn new_hello_ack(max_version: u32, applications: &[u32]) -> Result<Message, Error> {
+        let len = 8 + 4 * applications.len();
+        if len >= 1 << 24 {
+            return Err(InnerError::DataTooLong.into());
+        }
+        let mut bytes = vec![0_u8; len];
+        bytes[0] = MessageType::HelloAck as u8;
+        #[allow(clippy::cast_possible_truncation)]
+        let len_bytes = (len as u32).to_le_bytes();
+        bytes[1..4].copy_from_slice(&len_bytes.as_slice()[..3]);
+        bytes[4..8].copy_from_slice(max_version.to_le_bytes().as_slice());
+        for (i, app) in applications.iter().enumerate() {
+            bytes[8 + i * 4..8 + (i + 1) * 4].copy_from_slice(app.to_le_bytes().as_slice());
+        }
+        Ok(Message(bytes))
+    }
+
+    /// Create a new `Record` `Message`
     ///
     /// # Errors
     ///
@@ -412,7 +475,7 @@ impl Message {
         Ok(Message(bytes))
     }
 
-    /// Create a new Locally Complete Message
+    /// Create a new `LocallyComplete` `Message`
     #[must_use]
     pub fn new_locally_complete(query_id: QueryId) -> Message {
         let len = 8;
@@ -425,7 +488,7 @@ impl Message {
         Message(bytes)
     }
 
-    /// Create a new Query Closed Message
+    /// Create a new `QueryClosed` `Message`
     #[must_use]
     pub fn new_query_closed(query_id: QueryId, code: QueryClosedCode) -> Message {
         let len = 8;
@@ -439,7 +502,7 @@ impl Message {
         Message(bytes)
     }
 
-    /// Create a new Submission Result Message
+    /// Create a new `SubmissionResult` `Message`
     #[must_use]
     pub fn new_submission_result(code: SubmissionResultCode, id: Id) -> Message {
         let len = 40;
@@ -453,7 +516,7 @@ impl Message {
         Message(bytes)
     }
 
-    /// Create a new Unrecognized Message
+    /// Create a new `Unrecognized` `Message`
     #[must_use]
     pub fn new_unrecognized() -> Message {
         let len = 8;
@@ -465,7 +528,7 @@ impl Message {
         Message(bytes)
     }
 
-    /// Get the `QueryId` if the message has one
+    /// Get the `QueryId` if the `Message` has one
     #[must_use]
     #[allow(clippy::missing_panics_doc)]
     pub fn query_id(&self) -> Option<QueryId> {
@@ -569,6 +632,37 @@ impl Message {
     pub fn submission_result_code(&self) -> Option<SubmissionResultCode> {
         if self.message_type() == MessageType::SubmissionResult {
             SubmissionResultCode::from_u8(self.0[4])
+        } else {
+            None
+        }
+    }
+
+    /// Get the max Mosaic major version of a `Hello` or `HelloAck`
+    #[must_use]
+    #[allow(clippy::missing_panics_doc)]
+    pub fn mosaic_major_version(&self) -> Option<u32> {
+        if self.message_type() == MessageType::Hello || self.message_type() == MessageType::HelloAck
+        {
+            Some(u32::from_le_bytes(self.0[4..8].try_into().unwrap()))
+        } else {
+            None
+        }
+    }
+
+    /// Get the Application IDs of a `Hello` or `HelloAck`
+    #[must_use]
+    #[allow(clippy::missing_panics_doc)]
+    pub fn application_ids(&self) -> Option<Vec<u32>> {
+        if self.message_type() == MessageType::Hello || self.message_type() == MessageType::HelloAck
+        {
+            let num = (self.len() - 8) / 4;
+            let mut v: Vec<u32> = Vec::with_capacity(num);
+            for _ in 0..num {
+                let app_id =
+                    u32::from_le_bytes(self.0[8 + num * 4..8 + (num + 1) * 4].try_into().unwrap());
+                v.push(app_id);
+            }
+            Some(v)
         } else {
             None
         }
