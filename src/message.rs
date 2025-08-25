@@ -192,6 +192,40 @@ impl SubmissionResultCode {
     }
 }
 
+/// An error code supplied in a `HelloAck` message
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[repr(u8)]
+pub enum HelloErrorCode {
+    /// No error
+    NoError = 0,
+
+    /// Unexpected Hello
+    UnexpectedHello = 1,
+
+    /// Unrecognized
+    Unrecognized(u8),
+}
+
+impl HelloErrorCode {
+    /// Create a `HelloErrorCode` from a `u8`
+    #[must_use]
+    pub fn from_u8(u: u8) -> HelloErrorCode {
+        match u {
+            0 => HelloErrorCode::NoError,
+            1 => HelloErrorCode::UnexpectedHello,
+            u => HelloErrorCode::Unrecognized(u),
+        }
+    }
+
+    pub fn to_u8(self) -> u8 {
+        match self {
+            Self::NoError => 0,
+            Self::UnexpectedHello => 1,
+            Self::Unrecognized(u) => u,
+        }
+    }
+}
+
 /// A protocol message
 // safety invariant: 0 must always be at least 4 bytes long (type and length)
 // safety invariant: type must be one of the defined types
@@ -318,7 +352,7 @@ impl Message {
     /// # Errors
     ///
     /// Returns an error if there are too many application IDs
-    pub fn new_hello(max_version: u32, applications: &[u32]) -> Result<Message, Error> {
+    pub fn new_hello(max_version: u16, applications: &[u32]) -> Result<Message, Error> {
         let len = 8 + 4 * applications.len();
         if len >= 1 << 24 {
             return Err(InnerError::DataTooLong.into());
@@ -328,7 +362,7 @@ impl Message {
         #[allow(clippy::cast_possible_truncation)]
         let len_bytes = (len as u32).to_le_bytes();
         bytes[1..4].copy_from_slice(&len_bytes.as_slice()[..3]);
-        bytes[4..8].copy_from_slice(max_version.to_le_bytes().as_slice());
+        bytes[6..8].copy_from_slice(max_version.to_le_bytes().as_slice());
         for (i, app) in applications.iter().enumerate() {
             bytes[8 + i * 4..8 + (i + 1) * 4].copy_from_slice(app.to_le_bytes().as_slice());
         }
@@ -437,7 +471,11 @@ impl Message {
     /// # Errors
     ///
     /// Returns an error if there are too many application IDs
-    pub fn new_hello_ack(max_version: u32, applications: &[u32]) -> Result<Message, Error> {
+    pub fn new_hello_ack(
+        code: HelloErrorCode,
+        max_version: u16,
+        applications: &[u32],
+    ) -> Result<Message, Error> {
         let len = 8 + 4 * applications.len();
         if len >= 1 << 24 {
             return Err(InnerError::DataTooLong.into());
@@ -447,7 +485,8 @@ impl Message {
         #[allow(clippy::cast_possible_truncation)]
         let len_bytes = (len as u32).to_le_bytes();
         bytes[1..4].copy_from_slice(&len_bytes.as_slice()[..3]);
-        bytes[4..8].copy_from_slice(max_version.to_le_bytes().as_slice());
+        bytes[4] = code.to_u8();
+        bytes[6..8].copy_from_slice(max_version.to_le_bytes().as_slice());
         for (i, app) in applications.iter().enumerate() {
             bytes[8 + i * 4..8 + (i + 1) * 4].copy_from_slice(app.to_le_bytes().as_slice());
         }
@@ -640,10 +679,10 @@ impl Message {
     /// Get the max Mosaic major version of a `Hello` or `HelloAck`
     #[must_use]
     #[allow(clippy::missing_panics_doc)]
-    pub fn mosaic_major_version(&self) -> Option<u32> {
+    pub fn mosaic_major_version(&self) -> Option<u16> {
         if self.message_type() == MessageType::Hello || self.message_type() == MessageType::HelloAck
         {
-            Some(u32::from_le_bytes(self.0[4..8].try_into().unwrap()))
+            Some(u16::from_le_bytes(self.0[6..8].try_into().unwrap()))
         } else {
             None
         }
@@ -663,6 +702,17 @@ impl Message {
                 v.push(app_id);
             }
             Some(v)
+        } else {
+            None
+        }
+    }
+
+    /// Get the `code` from a `HelloAck`
+    #[must_use]
+    #[allow(clippy::missing_panics_doc)]
+    pub fn hello_error_code(&self) -> Option<HelloErrorCode> {
+        if self.message_type() == MessageType::HelloAck {
+            Some(HelloErrorCode::from_u8(self.0[4]))
         } else {
             None
         }
@@ -736,9 +786,10 @@ mod test {
         assert_eq!(m, Message::from_bytes(m.as_bytes().to_vec()).unwrap());
 
         // HelloAck
-        let m = Message::new_hello_ack(0, &[1]).unwrap();
+        let m = Message::new_hello_ack(HelloErrorCode::Unrecognized(3), 0, &[1]).unwrap();
         assert_eq!(m.mosaic_major_version(), Some(0));
         assert_eq!(m.application_ids(), Some(vec![1]));
+        assert_eq!(m.hello_error_code(), Some(HelloErrorCode::Unrecognized(3)));
         assert_eq!(m, Message::from_bytes(m.as_bytes().to_vec()).unwrap());
 
         // Record
