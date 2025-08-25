@@ -657,14 +657,115 @@ impl Message {
         {
             let num = (self.len() - 8) / 4;
             let mut v: Vec<u32> = Vec::with_capacity(num);
-            for _ in 0..num {
+            for i in 0..num {
                 let app_id =
-                    u32::from_le_bytes(self.0[8 + num * 4..8 + (num + 1) * 4].try_into().unwrap());
+                    u32::from_le_bytes(self.0[8 + i * 4..8 + (i + 1) * 4].try_into().unwrap());
                 v.push(app_id);
             }
             Some(v)
         } else {
             None
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::{
+        Address, Kind, OwnedFilter, OwnedFilterElement, OwnedRecord, RecordAddressData,
+        RecordFlags, RecordParts, RecordSigningData, SecretKey, Timestamp, EMPTY_TAG_SET,
+    };
+
+    #[test]
+    fn test_messages() {
+        let key1 = SecretKey::generate();
+        let key2 = SecretKey::generate();
+        let query_id = QueryId::from_bytes([0, 1]);
+        let reference1 = Address::new_random(key1.public(), Kind::BLOG_POST).to_reference();
+        let reference2 = Address::new_random(key2.public(), Kind::EXAMPLE).to_reference();
+        let filter = OwnedFilter::new(&[
+            &OwnedFilterElement::new_kinds(&[Kind::MICROBLOG_ROOT, Kind::REPLY_COMMENT]).unwrap(),
+            &OwnedFilterElement::new_author_keys(&[key1.public(), key2.public()]).unwrap(),
+        ])
+        .unwrap();
+        let record = OwnedRecord::new(&RecordParts {
+            signing_data: RecordSigningData::SecretKey(key1.clone()),
+            address_data: RecordAddressData::Random(key1.public(), Kind::KEY_SCHEDULE),
+            timestamp: Timestamp::now().unwrap(),
+            flags: RecordFlags::empty(),
+            tag_set: &EMPTY_TAG_SET,
+            payload: b"hello world",
+        })
+        .unwrap();
+
+        // Hello
+        let m = Message::new_hello(0, &[1]).unwrap();
+        assert_eq!(m.mosaic_major_version(), Some(0));
+        assert_eq!(m.application_ids(), Some(vec![1]));
+        assert_eq!(m, Message::from_bytes(m.as_bytes().to_vec()).unwrap());
+
+        // Get
+        let m = Message::new_get(query_id, &[&reference1, &reference2]).unwrap();
+        assert_eq!(m.query_id(), Some(query_id));
+        assert_eq!(m.references(), Some(vec![reference1, reference2]));
+        assert_eq!(m, Message::from_bytes(m.as_bytes().to_vec()).unwrap());
+
+        // Query
+        let m = Message::new_query(query_id, &filter, 50).unwrap();
+        assert_eq!(m.query_id(), Some(query_id));
+        assert_eq!(m.filter(), Some(&*filter));
+        assert_eq!(m.limit(), Some(50));
+        assert_eq!(m, Message::from_bytes(m.as_bytes().to_vec()).unwrap());
+
+        // Subscribe
+        let m = Message::new_subscribe(query_id, &filter, 50).unwrap();
+        assert_eq!(m.query_id(), Some(query_id));
+        assert_eq!(m.filter(), Some(&*filter));
+        assert_eq!(m.limit(), Some(50));
+        assert_eq!(m, Message::from_bytes(m.as_bytes().to_vec()).unwrap());
+
+        // Unsubscribe
+        let m = Message::new_unsubscribe(query_id);
+        assert_eq!(m.query_id(), Some(query_id));
+        assert_eq!(m, Message::from_bytes(m.as_bytes().to_vec()).unwrap());
+
+        // Submission
+        let m = Message::new_submission(&record).unwrap();
+        assert_eq!(m.record(), Some(&*record));
+        assert_eq!(m, Message::from_bytes(m.as_bytes().to_vec()).unwrap());
+
+        // HelloAck
+        let m = Message::new_hello_ack(0, &[1]).unwrap();
+        assert_eq!(m.mosaic_major_version(), Some(0));
+        assert_eq!(m.application_ids(), Some(vec![1]));
+        assert_eq!(m, Message::from_bytes(m.as_bytes().to_vec()).unwrap());
+
+        // Record
+        let m = Message::new_record(query_id, &record).unwrap();
+        assert_eq!(m.query_id(), Some(query_id));
+        assert_eq!(m.record(), Some(&*record));
+        assert_eq!(m, Message::from_bytes(m.as_bytes().to_vec()).unwrap());
+
+        // LocallyComplete
+        let m = Message::new_locally_complete(query_id);
+        assert_eq!(m.query_id(), Some(query_id));
+        assert_eq!(m, Message::from_bytes(m.as_bytes().to_vec()).unwrap());
+
+        // QueryClosed
+        let m = Message::new_query_closed(query_id, QueryClosedCode::Other);
+        assert_eq!(m.query_id(), Some(query_id));
+        assert_eq!(m.query_closed_code(), Some(QueryClosedCode::Other));
+        assert_eq!(m, Message::from_bytes(m.as_bytes().to_vec()).unwrap());
+
+        // SubmissionResult
+        let m = Message::new_submission_result(SubmissionResultCode::Ok, record.id());
+        assert_eq!(m, Message::from_bytes(m.as_bytes().to_vec()).unwrap());
+        assert_eq!(m.submission_result_code(), Some(SubmissionResultCode::Ok));
+        assert_eq!(m.id_prefix(), Some(&record.id().as_bytes()[..32]));
+
+        // Unrecognized
+        let m = Message::new_unrecognized();
+        assert_eq!(m, Message::from_bytes(m.as_bytes().to_vec()).unwrap());
     }
 }
