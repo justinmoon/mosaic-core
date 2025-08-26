@@ -1,5 +1,5 @@
 use crate::{
-    Address, DuplicateHandling, Error, OwnedRecord, OwnedTagSet, PublicKey, ReadAccess, Record,
+    Address, DuplicateHandling, Error, InnerError, OwnedRecord, OwnedTagSet, PublicKey, ReadAccess, Record,
     RecordAddressData, RecordFlags, RecordParts, RecordSigningData, Timestamp,
 };
 use serde::{Deserialize, Serialize};
@@ -116,6 +116,11 @@ impl OwnedRecord {
             payload: &p,
         })?;
 
+        // Verify the ID in the original JSON matches what was computed
+        if r.id().as_printable() != json_record.id {
+            return Err(InnerError::JsonIdIsIncorrect.into());
+        }
+
         Ok(r)
     }
 }
@@ -149,13 +154,13 @@ mod test {
 
         assert_eq!(
             json,
-            r#"{"id":"moref0yyyyyaayyryb3cn53cwx1ra9qwi7c1qwg594yu9ktxrk67oxoim4u1q96asnzfnna7thpon7trmee","address":"moref068okurmuk3runyyyybtoyyeyd1f5t9r8btz6r1kwcu3tawyyryqymjbcbd1hd8nwf1iwnaj6q8t31","author_key":"mopub0tqhx3bacp9tr1idr6cqfyybydon4emyehzy3aibcipysnxuthqco","signing_key":"mopub0tqhx3bacp9tr1idr6cqfyybydon4emyehzy3aibcipysnxuthqco","kind":{"as_number":425201827868,"as_bytes":[0,0,0,99,0,1,0,28],"application_id":99,"application_kind":1,"duplicate_handling":"Unique","read_access":"Everybody","content_is_printable":true},"timestamp":425201827868,"flags":0,"tags":[],"payload":"hello world","z32_payload":null,"signature":"r6co5ppd4fj3kaxmp1yjk5z8x4xb1hc5m517tq5yno86i7g3yc7am68nsngsujt3jkz1aiwha8hrj6rjmz8mocqf84qi5tgokksasyo"}"#
+            r#"{"id":"moref0yyyyyaayyryb3k67amzuz396jk3jjniyapb937on4y58ajzz9qoek7tor3xqdaer8gtens8jgx1or","address":"moref068okurmuk3runyyyybtoyyeyd1f5t9r8btz6r1kwcu3tawyyryqymjbcbd1hd8nwf1iwnaj6q8t31","author_key":"mopub0tqhx3bacp9tr1idr6cqfyybydon4emyehzy3aibcipysnxuthqco","signing_key":"mopub0tqhx3bacp9tr1idr6cqfyybydon4emyehzy3aibcipysnxuthqco","kind":{"as_number":425201827868,"as_bytes":[0,0,0,99,0,1,0,28],"application_id":99,"application_kind":1,"duplicate_handling":"Unique","read_access":"Everybody","content_is_printable":true},"timestamp":425201827868,"flags":0,"tags":[],"payload":"hello world","z32_payload":null,"signature":"hbjsaiwc8d3qnujt3koepuyzydqmfygn4wbpm5bt8baq8imt8pxr46xwhbr13fxx1gd9nkd9g353n8rz1nwbsbjdez9ndgb85uasebo"}"#
         );
     }
 
     #[test]
     fn test_record_from_json() {
-        let json = r#"{"id":"moref0yyyyyaayyryb3cn53cwx1ra9qwi7c1qwg594yu9ktxrk67oxoim4u1q96asnzfnna7thpon7trmee","address":"moref068okurmuk3runyyyybtoyyeyd1f5t9r8btz6r1kwcu3tawyyryqymjbcbd1hd8nwf1iwnaj6q8t31","author_key":"mopub0tqhx3bacp9tr1idr6cqfyybydon4emyehzy3aibcipysnxuthqco","signing_key":"mopub0tqhx3bacp9tr1idr6cqfyybydon4emyehzy3aibcipysnxuthqco","kind":{"as_number":425201827868,"as_bytes":[0,0,0,99,0,1,0,28],"application_id":99,"application_kind":1,"duplicate_handling":"Unique","read_access":"Everybody","content_is_printable":true},"timestamp":425201827868,"flags":0,"tags":[],"payload":"hello world","z32_payload":null,"signature":"r6co5ppd4fj3kaxmp1yjk5z8x4xb1hc5m517tq5yno86i7g3yc7am68nsngsujt3jkz1aiwha8hrj6rjmz8mocqf84qi5tgokksasyo"}"#;
+        let json = r#"{"id":"moref0yyyyyaayyryb3k67amzuz396jk3jjniyapb937on4y58ajzz9qoek7tor3xqdaer8gtens8jgx1or","address":"moref068okurmuk3runyyyybtoyyeyd1f5t9r8btz6r1kwcu3tawyyryqymjbcbd1hd8nwf1iwnaj6q8t31","author_key":"mopub0tqhx3bacp9tr1idr6cqfyybydon4emyehzy3aibcipysnxuthqco","signing_key":"mopub0tqhx3bacp9tr1idr6cqfyybydon4emyehzy3aibcipysnxuthqco","kind":{"as_number":425201827868,"as_bytes":[0,0,0,99,0,1,0,28],"application_id":99,"application_kind":1,"duplicate_handling":"Unique","read_access":"Everybody","content_is_printable":true},"timestamp":425201827868,"flags":0,"tags":[],"payload":"hello world","z32_payload":null,"signature":"hbjsaiwc8d3qnujt3koepuyzydqmfygn4wbpm5bt8baq8imt8pxr46xwhbr13fxx1gd9nkd9g353n8rz1nwbsbjdez9ndgb85uasebo"}"#;
 
         let record = OwnedRecord::from_json(json).unwrap();
 

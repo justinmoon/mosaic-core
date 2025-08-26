@@ -110,6 +110,10 @@ pub enum InnerError {
     #[cfg(feature = "json")]
     Json(serde_json::Error),
 
+    /// Json ID is incorrect
+    #[cfg(feature = "json")]
+    JsonIdIsIncorrect,
+
     /// Missing scheme
     MissingScheme,
 
@@ -217,6 +221,8 @@ impl std::fmt::Display for InnerError {
             InnerError::InvalidUriParts(e) => write!(f, "Invalid URI parts: {e}"),
             #[cfg(feature = "json")]
             InnerError::Json(e) => write!(f, "JSON: {e}"),
+            #[cfg(feature = "json")]
+            InnerError::JsonIdIsIncorrect => write!(f, "JSON ID is incorrect"),
             InnerError::MissingScheme => write!(f, "Missing scheme"),
             InnerError::NotAnAddress => write!(f, "Reference is not an address"),
             InnerError::NotAnId => write!(f, "Reference is not an ID"),
