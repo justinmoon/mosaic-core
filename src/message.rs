@@ -40,26 +40,49 @@ pub enum MessageType {
 
     /// Unrecognized
     Unrecognized = 0xF0,
+
+    /// Undefined
+    Undefined(u8),
 }
 
 impl MessageType {
     /// Create a `MessageType` from a `u8`
     #[must_use]
-    pub fn from_u8(u: u8) -> Option<MessageType> {
+    pub fn from_u8(u: u8) -> MessageType {
         match u {
-            0x1 => Some(MessageType::Get),
-            0x2 => Some(MessageType::Query),
-            0x3 => Some(MessageType::Subscribe),
-            0x4 => Some(MessageType::Unsubscribe),
-            0x5 => Some(MessageType::Submission),
-            0x10 => Some(MessageType::Hello),
-            0x80 => Some(MessageType::Record),
-            0x81 => Some(MessageType::LocallyComplete),
-            0x82 => Some(MessageType::QueryClosed),
-            0x83 => Some(MessageType::SubmissionResult),
-            0x90 => Some(MessageType::HelloAck),
-            0xF0 => Some(MessageType::Unrecognized),
-            _ => None,
+            0x1 => MessageType::Get,
+            0x2 => MessageType::Query,
+            0x3 => MessageType::Subscribe,
+            0x4 => MessageType::Unsubscribe,
+            0x5 => MessageType::Submission,
+            0x10 => MessageType::Hello,
+            0x80 => MessageType::Record,
+            0x81 => MessageType::LocallyComplete,
+            0x82 => MessageType::QueryClosed,
+            0x83 => MessageType::SubmissionResult,
+            0x90 => MessageType::HelloAck,
+            0xF0 => MessageType::Unrecognized,
+            u => MessageType::Undefined(u),
+        }
+    }
+
+    /// Convert to a u8
+    #[must_use]
+    pub fn to_u8(self) -> u8 {
+        match self {
+            Self::Get => 0x1,
+            Self::Query => 0x2,
+            Self::Subscribe => 0x3,
+            Self::Unsubscribe => 0x4,
+            Self::Submission => 0x5,
+            Self::Hello => 0x10,
+            Self::Record => 0x80,
+            Self::LocallyComplete => 0x81,
+            Self::QueryClosed => 0x82,
+            Self::SubmissionResult => 0x83,
+            Self::HelloAck => 0x90,
+            Self::Unrecognized => 0xF0,
+            Self::Undefined(u) => u,
         }
     }
 }
@@ -112,23 +135,43 @@ pub enum QueryClosedCode {
 
     /// Other reason, or not specified
     Other = 0xFF,
+
+    /// Undefined
+    Undefined(u8) = 0,
 }
 
 impl QueryClosedCode {
     /// Create a `QueryClosedCode` from a `u8`
     #[must_use]
-    pub fn from_u8(u: u8) -> Option<QueryClosedCode> {
+    pub fn from_u8(u: u8) -> QueryClosedCode {
         match u {
-            0x1 => Some(QueryClosedCode::OnRequest),
-            0x10 => Some(QueryClosedCode::RejectedInvalid),
-            0x11 => Some(QueryClosedCode::RejectedTooOpen),
-            0x12 => Some(QueryClosedCode::RejectedTooFast),
-            0x13 => Some(QueryClosedCode::RejectedTempBanned),
-            0x14 => Some(QueryClosedCode::RejectedPermBanned),
-            0x30 => Some(QueryClosedCode::ShuttingDown),
-            0xF0 => Some(QueryClosedCode::InternalError),
-            0xFF => Some(QueryClosedCode::Other),
-            _ => None,
+            0x1 => QueryClosedCode::OnRequest,
+            0x10 => QueryClosedCode::RejectedInvalid,
+            0x11 => QueryClosedCode::RejectedTooOpen,
+            0x12 => QueryClosedCode::RejectedTooFast,
+            0x13 => QueryClosedCode::RejectedTempBanned,
+            0x14 => QueryClosedCode::RejectedPermBanned,
+            0x30 => QueryClosedCode::ShuttingDown,
+            0xF0 => QueryClosedCode::InternalError,
+            0xFF => QueryClosedCode::Other,
+            u => QueryClosedCode::Undefined(u),
+        }
+    }
+
+    /// Convert to a u8
+    #[must_use]
+    pub fn to_u8(self) -> u8 {
+        match self {
+            Self::OnRequest => 0x1,
+            Self::RejectedInvalid => 0x10,
+            Self::RejectedTooOpen => 0x11,
+            Self::RejectedTooFast => 0x12,
+            Self::RejectedTempBanned => 0x13,
+            Self::RejectedPermBanned => 0x14,
+            Self::ShuttingDown => 0x30,
+            Self::InternalError => 0xF0,
+            Self::Other => 0xFF,
+            Self::Undefined(u) => u,
         }
     }
 }
@@ -169,25 +212,47 @@ pub enum SubmissionResultCode {
 
     /// Other reason, or not specified
     Other = 0xFF,
+
+    /// Undefined
+    Undefined(u8) = 0,
 }
 
 impl SubmissionResultCode {
     /// Create a `SubmissionResultCode` from a `u8`
     #[must_use]
-    pub fn from_u8(u: u8) -> Option<SubmissionResultCode> {
+    pub fn from_u8(u: u8) -> SubmissionResultCode {
         match u {
-            0x1 => Some(SubmissionResultCode::Ok),
-            0x2 => Some(SubmissionResultCode::Duplicate),
-            0x3 => Some(SubmissionResultCode::NoConsumers),
-            0x10 => Some(SubmissionResultCode::RejectedInvalid),
-            0x12 => Some(SubmissionResultCode::RejectedTooFast),
-            0x13 => Some(SubmissionResultCode::RejectedTempBanned),
-            0x14 => Some(SubmissionResultCode::RejectedPermBanned),
-            0x15 => Some(SubmissionResultCode::RejectedRequiresAuthn),
-            0x16 => Some(SubmissionResultCode::RejectedRequiresAuthz),
-            0xF0 => Some(SubmissionResultCode::InternalError),
-            0xFF => Some(SubmissionResultCode::Other),
-            _ => None,
+            0x1 => SubmissionResultCode::Ok,
+            0x2 => SubmissionResultCode::Duplicate,
+            0x3 => SubmissionResultCode::NoConsumers,
+            0x10 => SubmissionResultCode::RejectedInvalid,
+            0x12 => SubmissionResultCode::RejectedTooFast,
+            0x13 => SubmissionResultCode::RejectedTempBanned,
+            0x14 => SubmissionResultCode::RejectedPermBanned,
+            0x15 => SubmissionResultCode::RejectedRequiresAuthn,
+            0x16 => SubmissionResultCode::RejectedRequiresAuthz,
+            0xF0 => SubmissionResultCode::InternalError,
+            0xFF => SubmissionResultCode::Other,
+            u => SubmissionResultCode::Undefined(u),
+        }
+    }
+
+    /// Convert to a u8
+    #[must_use]
+    pub fn to_u8(self) -> u8 {
+        match self {
+            Self::Ok => 0x1,
+            Self::Duplicate => 0x2,
+            Self::NoConsumers => 0x3,
+            Self::RejectedInvalid => 0x10,
+            Self::RejectedTooFast => 0x12,
+            Self::RejectedTempBanned => 0x13,
+            Self::RejectedPermBanned => 0x14,
+            Self::RejectedRequiresAuthn => 0x15,
+            Self::RejectedRequiresAuthz => 0x16,
+            Self::InternalError => 0xF0,
+            Self::Other => 0xFF,
+            Self::Undefined(u) => u,
         }
     }
 }
@@ -202,8 +267,8 @@ pub enum HelloErrorCode {
     /// Unexpected Hello
     UnexpectedHello = 1,
 
-    /// Unrecognized
-    Unrecognized(u8),
+    /// Undefined
+    Undefined(u8),
 }
 
 impl HelloErrorCode {
@@ -213,15 +278,17 @@ impl HelloErrorCode {
         match u {
             0 => HelloErrorCode::NoError,
             1 => HelloErrorCode::UnexpectedHello,
-            u => HelloErrorCode::Unrecognized(u),
+            u => HelloErrorCode::Undefined(u),
         }
     }
 
+    /// Convert to a u8
+    #[must_use]
     pub fn to_u8(self) -> u8 {
         match self {
             Self::NoError => 0,
             Self::UnexpectedHello => 1,
-            Self::Unrecognized(u) => u,
+            Self::Undefined(u) => u,
         }
     }
 }
@@ -248,8 +315,7 @@ impl Message {
             let len =
                 (bytes[1] as usize) + ((bytes[2] as usize) << 8) + ((bytes[3] as usize) << 16);
             if len == bytes.len() {
-                let t = MessageType::from_u8(bytes[0])
-                    .ok_or::<Error>(InnerError::InvalidMessage.into())?;
+                let t = MessageType::from_u8(bytes[0]);
                 #[allow(clippy::match_same_arms)]
                 match t {
                     MessageType::Hello => {
@@ -295,18 +361,25 @@ impl Message {
                         if bytes.len() != 8 {
                             return Err(InnerError::InvalidMessage.into());
                         }
-                        let _ = QueryClosedCode::from_u8(bytes[6])
-                            .ok_or::<Error>(InnerError::InvalidMessage.into())?;
+                        if let QueryClosedCode::Undefined(_) = QueryClosedCode::from_u8(bytes[6]) {
+                            return Err(InnerError::InvalidMessage.into());
+                        }
                     }
                     MessageType::SubmissionResult => {
                         if bytes.len() != 40 {
                             return Err(InnerError::InvalidMessage.into());
                         }
-                        let _ = SubmissionResultCode::from_u8(bytes[4])
-                            .ok_or::<Error>(InnerError::InvalidMessage.into())?;
+                        if let SubmissionResultCode::Undefined(_) =
+                            SubmissionResultCode::from_u8(bytes[4])
+                        {
+                            return Err(InnerError::InvalidMessage.into());
+                        }
                         if bytes[8] & (1 << 7) != 0 {
                             return Err(InnerError::InvalidMessage.into());
                         }
+                    }
+                    MessageType::Undefined(_) => {
+                        return Err(InnerError::InvalidMessage.into());
                     }
                 }
                 Ok(Message(bytes))
@@ -337,7 +410,7 @@ impl Message {
     #[must_use]
     #[allow(clippy::missing_panics_doc)]
     pub fn message_type(&self) -> MessageType {
-        MessageType::from_u8(self.0[0]).unwrap()
+        MessageType::from_u8(self.0[0])
     }
 
     /// Get the length
@@ -358,7 +431,7 @@ impl Message {
             return Err(InnerError::DataTooLong.into());
         }
         let mut bytes = vec![0_u8; len];
-        bytes[0] = MessageType::Hello as u8;
+        bytes[0] = MessageType::Hello.to_u8();
         #[allow(clippy::cast_possible_truncation)]
         let len_bytes = (len as u32).to_le_bytes();
         bytes[1..4].copy_from_slice(&len_bytes.as_slice()[..3]);
@@ -380,7 +453,7 @@ impl Message {
             return Err(InnerError::DataTooLong.into());
         }
         let mut bytes = vec![0_u8; len];
-        bytes[0] = MessageType::Get as u8;
+        bytes[0] = MessageType::Get.to_u8();
         #[allow(clippy::cast_possible_truncation)]
         let len_bytes = (len as u32).to_le_bytes();
         bytes[1..4].copy_from_slice(&len_bytes.as_slice()[..3]);
@@ -402,7 +475,7 @@ impl Message {
             return Err(InnerError::DataTooLong.into());
         }
         let mut bytes = vec![0_u8; len];
-        bytes[0] = MessageType::Query as u8;
+        bytes[0] = MessageType::Query.to_u8();
         #[allow(clippy::cast_possible_truncation)]
         let len_bytes = (len as u32).to_le_bytes();
         bytes[1..4].copy_from_slice(&len_bytes.as_slice()[..3]);
@@ -423,7 +496,7 @@ impl Message {
             return Err(InnerError::DataTooLong.into());
         }
         let mut bytes = vec![0_u8; len];
-        bytes[0] = MessageType::Subscribe as u8;
+        bytes[0] = MessageType::Subscribe.to_u8();
         #[allow(clippy::cast_possible_truncation)]
         let len_bytes = (len as u32).to_le_bytes();
         bytes[1..4].copy_from_slice(&len_bytes.as_slice()[..3]);
@@ -438,7 +511,7 @@ impl Message {
     pub fn new_unsubscribe(query_id: QueryId) -> Message {
         let len = 8;
         let mut bytes = vec![0_u8; len];
-        bytes[0] = MessageType::Unsubscribe as u8;
+        bytes[0] = MessageType::Unsubscribe.to_u8();
         #[allow(clippy::cast_possible_truncation)]
         let len_bytes = (len as u32).to_le_bytes();
         bytes[1..4].copy_from_slice(&len_bytes.as_slice()[..3]);
@@ -458,7 +531,7 @@ impl Message {
             return Err(InnerError::DataTooLong.into());
         }
         let mut bytes = vec![0_u8; len];
-        bytes[0] = MessageType::Submission as u8;
+        bytes[0] = MessageType::Submission.to_u8();
         #[allow(clippy::cast_possible_truncation)]
         let len_bytes = (len as u32).to_le_bytes();
         bytes[1..4].copy_from_slice(&len_bytes.as_slice()[..3]);
@@ -481,7 +554,7 @@ impl Message {
             return Err(InnerError::DataTooLong.into());
         }
         let mut bytes = vec![0_u8; len];
-        bytes[0] = MessageType::HelloAck as u8;
+        bytes[0] = MessageType::HelloAck.to_u8();
         #[allow(clippy::cast_possible_truncation)]
         let len_bytes = (len as u32).to_le_bytes();
         bytes[1..4].copy_from_slice(&len_bytes.as_slice()[..3]);
@@ -505,7 +578,7 @@ impl Message {
             return Err(InnerError::DataTooLong.into());
         }
         let mut bytes = vec![0_u8; len];
-        bytes[0] = MessageType::Record as u8;
+        bytes[0] = MessageType::Record.to_u8();
         #[allow(clippy::cast_possible_truncation)]
         let len_bytes = (len as u32).to_le_bytes();
         bytes[1..4].copy_from_slice(&len_bytes.as_slice()[..3]);
@@ -519,7 +592,7 @@ impl Message {
     pub fn new_locally_complete(query_id: QueryId) -> Message {
         let len = 8;
         let mut bytes = vec![0_u8; len];
-        bytes[0] = MessageType::LocallyComplete as u8;
+        bytes[0] = MessageType::LocallyComplete.to_u8();
         #[allow(clippy::cast_possible_truncation)]
         let len_bytes = (len as u32).to_le_bytes();
         bytes[1..4].copy_from_slice(&len_bytes.as_slice()[..3]);
@@ -532,12 +605,12 @@ impl Message {
     pub fn new_query_closed(query_id: QueryId, code: QueryClosedCode) -> Message {
         let len = 8;
         let mut bytes = vec![0_u8; len];
-        bytes[0] = MessageType::QueryClosed as u8;
+        bytes[0] = MessageType::QueryClosed.to_u8();
         #[allow(clippy::cast_possible_truncation)]
         let len_bytes = (len as u32).to_le_bytes();
         bytes[1..4].copy_from_slice(&len_bytes.as_slice()[..3]);
         bytes[4..6].copy_from_slice(query_id.as_bytes().as_slice());
-        bytes[6] = code as u8;
+        bytes[6] = code.to_u8();
         Message(bytes)
     }
 
@@ -546,11 +619,11 @@ impl Message {
     pub fn new_submission_result(code: SubmissionResultCode, id: Id) -> Message {
         let len = 40;
         let mut bytes = vec![0_u8; len];
-        bytes[0] = MessageType::SubmissionResult as u8;
+        bytes[0] = MessageType::SubmissionResult.to_u8();
         #[allow(clippy::cast_possible_truncation)]
         let len_bytes = (len as u32).to_le_bytes();
         bytes[1..4].copy_from_slice(&len_bytes.as_slice()[..3]);
-        bytes[4] = code as u8;
+        bytes[4] = code.to_u8();
         bytes[8..].copy_from_slice(&id.as_bytes()[..32]);
         Message(bytes)
     }
@@ -560,7 +633,7 @@ impl Message {
     pub fn new_unrecognized() -> Message {
         let len = 8;
         let mut bytes = vec![0_u8; len];
-        bytes[0] = MessageType::Unrecognized as u8;
+        bytes[0] = MessageType::Unrecognized.to_u8();
         #[allow(clippy::cast_possible_truncation)]
         let len_bytes = (len as u32).to_le_bytes();
         bytes[1..4].copy_from_slice(&len_bytes.as_slice()[..3]);
@@ -650,7 +723,7 @@ impl Message {
     #[must_use]
     pub fn query_closed_code(&self) -> Option<QueryClosedCode> {
         if self.message_type() == MessageType::QueryClosed {
-            QueryClosedCode::from_u8(self.0[6])
+            Some(QueryClosedCode::from_u8(self.0[6]))
         } else {
             None
         }
@@ -670,7 +743,7 @@ impl Message {
     #[must_use]
     pub fn submission_result_code(&self) -> Option<SubmissionResultCode> {
         if self.message_type() == MessageType::SubmissionResult {
-            SubmissionResultCode::from_u8(self.0[4])
+            Some(SubmissionResultCode::from_u8(self.0[4]))
         } else {
             None
         }
@@ -786,10 +859,10 @@ mod test {
         assert_eq!(m, Message::from_bytes(m.as_bytes().to_vec()).unwrap());
 
         // HelloAck
-        let m = Message::new_hello_ack(HelloErrorCode::Unrecognized(3), 0, &[1]).unwrap();
+        let m = Message::new_hello_ack(HelloErrorCode::Undefined(3), 0, &[1]).unwrap();
         assert_eq!(m.mosaic_major_version(), Some(0));
         assert_eq!(m.application_ids(), Some(vec![1]));
-        assert_eq!(m.hello_error_code(), Some(HelloErrorCode::Unrecognized(3)));
+        assert_eq!(m.hello_error_code(), Some(HelloErrorCode::Undefined(3)));
         assert_eq!(m, Message::from_bytes(m.as_bytes().to_vec()).unwrap());
 
         // Record
