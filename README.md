@@ -15,3 +15,13 @@ After version 1.0.0 [Semantic Versioning](semver.org) rules will be in force.
 (Strictly speaking they already are because semver specifies "4. Major version zero
 (0.y.z) is for initial development. Anything MAY change at any time. The public API
 SHOULD NOT be considered stable."
+
+## Features
+
+- `serde`: enables serde support for data types. Note that they serialize into human
+    readable formats, not binary compact formats. Serde doesn't give us any way to
+    specify what we really want here when implementing `Serialize` and `Deserialize`,
+    and we can't do it both ways. Since most data structures are implemented as sequences
+    of bytes, they are sort-of already serialized compactly as bytes.
+- `json`: enables functions to convert data types to and from JSON format. Also enables
+    `serde`.
