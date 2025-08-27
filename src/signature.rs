@@ -1,6 +1,8 @@
 use crate::{DalekSigningKey, DalekVerifyingKey};
 use crate::{Error, InnerError};
 use rand::RngCore;
+#[cfg(feature = "serde")]
+use serde::{de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
 
 /// A public signing key representing a server or user,
 /// whether a master key or subkey.
@@ -85,6 +87,45 @@ impl PublicKey {
 impl std::fmt::Display for PublicKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.as_printable())
+    }
+}
+
+#[cfg(feature = "serde")]
+impl Serialize for PublicKey {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(self.as_printable().as_str())
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> Deserialize<'de> for PublicKey {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_str(PublicKeyVisitor)
+    }
+}
+
+#[cfg(feature = "serde")]
+struct PublicKeyVisitor;
+
+#[cfg(feature = "serde")]
+impl Visitor<'_> for PublicKeyVisitor {
+    type Value = PublicKey;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("A printable PublicKey string")
+    }
+
+    fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        PublicKey::from_printable(s).map_err(|_| E::custom("Input is not a printable PublicKey"))
     }
 }
 
@@ -314,7 +355,7 @@ impl EncryptedSecretKey {
             return Err(InnerError::InvalidPrintable.into_err());
         }
         let bytes = z32::decode(&s.as_bytes()[11..])?;
-        if bytes.len() != 50 {
+        if bytes.len() != 58 {
             return Err(InnerError::BadEncryptedSecretKey.into());
         }
         if bytes[0] != 0x01 {
@@ -330,6 +371,46 @@ impl EncryptedSecretKey {
 impl std::fmt::Display for EncryptedSecretKey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.as_printable())
+    }
+}
+
+#[cfg(feature = "serde")]
+impl Serialize for EncryptedSecretKey {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(self.as_printable().as_str())
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> Deserialize<'de> for EncryptedSecretKey {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_str(EncryptedSecretKeyVisitor)
+    }
+}
+
+#[cfg(feature = "serde")]
+struct EncryptedSecretKeyVisitor;
+
+#[cfg(feature = "serde")]
+impl Visitor<'_> for EncryptedSecretKeyVisitor {
+    type Value = EncryptedSecretKey;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("A printable EncryptedSecretKey string")
+    }
+
+    fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        EncryptedSecretKey::from_printable(s)
+            .map_err(|e| E::custom(format!("Input is not a printable EncryptedSecretKey: {e}")))
     }
 }
 
@@ -360,5 +441,34 @@ mod test {
         assert_eq!(secret_key, secret_key2);
 
         assert!(encrypted_secret_key.to_secret_key("wrongpassword").is_err());
+    }
+
+    #[cfg(feature = "json")]
+    #[test]
+    fn test_public_key_serde() {
+        use crate::{PublicKey, SecretKey};
+
+        let secret_key = SecretKey::generate();
+        let public_key = secret_key.public();
+        let s = serde_json::to_string(&public_key).unwrap();
+        assert_eq!(s.trim_matches(|c| c == '"'), public_key.as_printable());
+        let public_key2: PublicKey = serde_json::from_str(&s).unwrap();
+        assert_eq!(public_key, public_key2);
+    }
+
+    #[cfg(feature = "json")]
+    #[test]
+    fn test_encrypted_secret_key_serde() {
+        use crate::{EncryptedSecretKey, SecretKey};
+
+        let secret_key = SecretKey::generate();
+        let encrypted_secret_key = EncryptedSecretKey::from_secret_key(&secret_key, "password", 18);
+        let s = serde_json::to_string(&encrypted_secret_key).unwrap();
+        assert_eq!(
+            s.trim_matches(|c| c == '"'),
+            encrypted_secret_key.as_printable()
+        );
+        let esk2: EncryptedSecretKey = serde_json::from_str(&s).unwrap();
+        assert_eq!(encrypted_secret_key, esk2);
     }
 }
