@@ -1,4 +1,6 @@
 use crate::{Error, InnerError, Reference, Timestamp};
+#[cfg(feature = "serde")]
+use serde::{de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
 
 /// An Id uniquely identifies a record.
 ///
@@ -115,6 +117,45 @@ impl std::fmt::Display for Id {
     }
 }
 
+#[cfg(feature = "serde")]
+impl Serialize for Id {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(self.as_printable().as_str())
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> Deserialize<'de> for Id {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_str(IdVisitor)
+    }
+}
+
+#[cfg(feature = "serde")]
+struct IdVisitor;
+
+#[cfg(feature = "serde")]
+impl Visitor<'_> for IdVisitor {
+    type Value = Id;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("A printable Id string")
+    }
+
+    fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Id::from_printable(s).map_err(|_| E::custom("Input is not a printable Id"))
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -134,5 +175,17 @@ mod test {
         let id = Id::from_printable(printable).unwrap();
         let timestamp = id.timestamp();
         assert_eq!(format!("{timestamp}"), "1749071445135009408");
+    }
+
+    #[cfg(feature = "json")]
+    #[test]
+    fn test_id_serde() {
+        let printable =
+            "moref0dbn9gp16bwuebm9hc6y1w6amfkxjze7ymkxkopdc8cwakurdwaeasm8kh3ojy3jsjn3ymgkzijyka";
+        let id = Id::from_printable(printable).unwrap();
+        let s = serde_json::to_string(&id).unwrap();
+        assert_eq!(s.trim_matches(|c| c == '"'), printable);
+        let id2 = serde_json::from_str(&s).unwrap();
+        assert_eq!(id, id2);
     }
 }

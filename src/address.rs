@@ -1,7 +1,7 @@
 use crate::{Error, InnerError, Kind, PublicKey, Reference};
 use rand::RngCore;
 #[cfg(feature = "serde")]
-use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Visitor};
+use serde::{de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
 
 /// An Address identifies a record group where the latest one in
 /// the group is the current valid record and the previous ones
@@ -160,7 +160,7 @@ impl std::fmt::Display for Address {
 impl Serialize for Address {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: Serializer
+        S: Serializer,
     {
         serializer.serialize_str(self.as_printable().as_str())
     }
@@ -170,7 +170,7 @@ impl Serialize for Address {
 impl<'de> Deserialize<'de> for Address {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
-        D: Deserializer<'de>
+        D: Deserializer<'de>,
     {
         deserializer.deserialize_str(AddressVisitor)
     }
@@ -188,10 +188,10 @@ impl Visitor<'_> for AddressVisitor {
     }
 
     fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
-    where E: serde::de::Error
+    where
+        E: serde::de::Error,
     {
-        Address::from_printable(s)
-            .map_err(|_| E::custom("Input is not a printable Address"))
+        Address::from_printable(s).map_err(|_| E::custom("Input is not a printable Address"))
     }
 }
 
@@ -232,5 +232,4 @@ mod test {
         let addr2 = serde_json::from_str(&s).unwrap();
         assert_eq!(addr, addr2);
     }
-
 }

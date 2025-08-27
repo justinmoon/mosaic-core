@@ -1,6 +1,6 @@
 use crate::{
-    Address, DuplicateHandling, Error, InnerError, OwnedRecord, OwnedTagSet, PublicKey, ReadAccess, Record,
-    RecordAddressData, RecordFlags, RecordParts, RecordSigningData, Timestamp,
+    Address, DuplicateHandling, Error, InnerError, OwnedRecord, OwnedTagSet, PublicKey, ReadAccess,
+    Record, RecordAddressData, RecordFlags, RecordParts, RecordSigningData, Timestamp,
 };
 use serde::{Deserialize, Serialize};
 
@@ -87,13 +87,14 @@ impl OwnedRecord {
     /// # Errors
     ///
     /// Returns an `Err` if the input is not valid Json or a valid Record.
+    #[allow(clippy::cast_possible_wrap)]
     pub fn from_json(json: &str) -> Result<OwnedRecord, Error> {
         let json_record: JsonRecord = serde_json::from_str(json)?;
 
         let p: Vec<u8> = if let Some(p) = json_record.payload {
             p.as_bytes().to_owned()
         } else if let Some(b) = json_record.z32_payload {
-            z32::decode(b.as_bytes())?.to_owned()
+            z32::decode(b.as_bytes())?
         } else {
             Vec::new()
         };
