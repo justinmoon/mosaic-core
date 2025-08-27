@@ -2,12 +2,15 @@ use crate::{Error, InnerError, PublicKey, SecretKey};
 use bitflags::bitflags;
 use mainline::async_dht::AsyncDht;
 use mainline::{Id, MutableItem};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 // note: this has been updated from "mub24" because printable pubkeys have changed.
 pub(crate) const DHT_USER_SALT: &[u8] = b"mub25";
 
 /// Server usage flags
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 pub struct ServerUsage(u8);
 
 bitflags! {
@@ -31,6 +34,7 @@ impl ServerUsage {
 
 /// Bootstrap record for a user
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 pub struct UserBootstrap(Vec<(ServerUsage, PublicKey)>, i64);
 
 impl Default for UserBootstrap {
