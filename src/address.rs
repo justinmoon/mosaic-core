@@ -1,5 +1,7 @@
 use crate::{Error, InnerError, Kind, PublicKey, Reference};
 use rand::RngCore;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Visitor};
 
 /// An Address identifies a record group where the latest one in
 /// the group is the current valid record and the previous ones
@@ -7,6 +9,7 @@ use rand::RngCore;
 ///
 /// Addresses contain a nonce, a kind, and the master public key
 /// of the author.
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Address([u8; 48]);
 
@@ -153,6 +156,45 @@ impl std::fmt::Display for Address {
     }
 }
 
+#[cfg(feature = "serde")]
+impl Serialize for Address {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer
+    {
+        serializer.serialize_str(self.as_printable().as_str())
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> Deserialize<'de> for Address {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>
+    {
+        deserializer.deserialize_str(AddressVisitor)
+    }
+}
+
+#[cfg(feature = "serde")]
+struct AddressVisitor;
+
+#[cfg(feature = "serde")]
+impl Visitor<'_> for AddressVisitor {
+    type Value = Address;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("A printable Address string")
+    }
+
+    fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
+    where E: serde::de::Error
+    {
+        Address::from_printable(s)
+            .map_err(|_| E::custom("Input is not a printable Address"))
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -178,4 +220,17 @@ mod test {
         assert_eq!(addr.author_public_key(), author_key);
         assert_eq!(addr.kind(), Kind::KEY_SCHEDULE);
     }
+
+    #[cfg(feature = "json")]
+    #[test]
+    fn test_address_serde() {
+        let printable =
+            "moref047rad578begeoyyyyyyyyyeybaobh88zknproi8j5791e5mekfez1ye6zrifbhh6m1dtizcsp4y5w";
+        let addr = Address::from_printable(printable).unwrap();
+        let s = serde_json::to_string(&addr).unwrap();
+        assert_eq!(s.trim_matches(|c| c == '"'), printable);
+        let addr2 = serde_json::from_str(&s).unwrap();
+        assert_eq!(addr, addr2);
+    }
+
 }
