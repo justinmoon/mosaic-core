@@ -1,4 +1,6 @@
 use crate::{Address, Error, Id, InnerError};
+#[cfg(feature = "serde")]
+use serde::{de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
 
 /// A Reference (either an Id or an Address)
 ///
@@ -142,6 +144,46 @@ impl std::fmt::Display for Reference {
     }
 }
 
+#[cfg(feature = "serde")]
+impl Serialize for Reference {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(self.as_printable().as_str())
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> Deserialize<'de> for Reference {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_str(ReferenceVisitor)
+    }
+}
+
+#[cfg(feature = "serde")]
+struct ReferenceVisitor;
+
+#[cfg(feature = "serde")]
+impl Visitor<'_> for ReferenceVisitor {
+    type Value = Reference;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("A printable Reference string")
+    }
+
+    fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Reference::from_printable(s).map_err(|_| E::custom("Input is not a printable Reference"))
+    }
+}
+
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -167,5 +209,25 @@ mod test {
         assert!(refer.as_address().is_ok());
         let addr = refer.into_address().unwrap();
         assert_eq!(format!("{addr}"), printable);
+    }
+
+    #[cfg(feature = "json")]
+    #[test]
+    fn test_reference_serde() {
+        let printable =
+            "moref0dbn9gp16bwuebm9hc6y1w6amfkxjze7ymkxkopdc8cwakurdwaeasm8kh3ojy3jsjn3ymgkzijyka";
+        let r = Reference::from_printable(printable).unwrap();
+        let s = serde_json::to_string(&r).unwrap();
+        assert_eq!(s.trim_matches(|c| c == '"'), printable);
+        let r2 = serde_json::from_str(&s).unwrap();
+        assert_eq!(r, r2);
+
+        let printable =
+            "moref047rad578begeoyyyyyyyyyeybaobh88zknproi8j5791e5mekfez1ye6zrifbhh6m1dtizcsp4y5w";
+        let r = Reference::from_printable(printable).unwrap();
+        let s = serde_json::to_string(&r).unwrap();
+        assert_eq!(s.trim_matches(|c| c == '"'), printable);
+        let r2 = serde_json::from_str(&s).unwrap();
+        assert_eq!(r, r2);
     }
 }
