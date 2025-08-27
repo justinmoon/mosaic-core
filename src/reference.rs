@@ -183,7 +183,6 @@ impl Visitor<'_> for ReferenceVisitor {
     }
 }
 
-
 #[cfg(test)]
 mod test {
     use super::*;

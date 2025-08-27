@@ -115,7 +115,8 @@ pub use tag_set::{OwnedTagSet, TagSet, TagSetIter, EMPTY_TAG_SET};
 mod timestamp;
 pub use timestamp::{Timestamp, MAX_NANOSECONDS};
 
-mod uri;
+mod url;
+pub use url::Url;
 
 mod user_bootstrap;
 pub use user_bootstrap::UserBootstrap;

@@ -1,13 +1,15 @@
-use crate::{Error, InnerError, PublicKey, SecretKey};
-use http::Uri;
+use crate::{Error, InnerError, PublicKey, SecretKey, Url};
 use mainline::async_dht::AsyncDht;
 use mainline::{Id, MutableItem};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 pub(crate) const DHT_SERVER_SALT: &[u8] = b"msb24";
 
 /// Bootstrap record for a server
 #[derive(Debug, Clone)]
-pub struct ServerBootstrap(Vec<Uri>, i64);
+#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
+pub struct ServerBootstrap(Vec<Url>, i64);
 
 impl Default for ServerBootstrap {
     fn default() -> Self {
@@ -22,24 +24,20 @@ impl ServerBootstrap {
         ServerBootstrap(vec![], 0)
     }
 
-    /// Build a `ServerBootstrap` from a `Vec<Uri>` and a sequence number
-    /// Extraneous `Uri` data will be stripped
+    /// Build a `ServerBootstrap` from a `Vec<Url>` and a sequence number
+    /// Extraneous `Url` data will be stripped
     ///
     /// # Errors
     ///
-    /// Returns an `Err` if the any of the Uris have missing schemes or schemes that are not
+    /// Returns an `Err` if the any of the Urls have missing schemes or schemes that are not
     /// either `wss` or `https`
-    pub fn from_vec_and_seq(mut v: Vec<Uri>, seq: i64) -> Result<ServerBootstrap, Error> {
-        let mut output: Vec<Uri> = vec![];
-        for uri in v.drain(..) {
-            output.push(crate::uri::clean_uri(uri)?);
-        }
-        Ok(ServerBootstrap(output, seq))
+    pub fn from_vec_and_seq(v: Vec<Url>, seq: i64) -> Result<ServerBootstrap, Error> {
+        Ok(ServerBootstrap(v, seq))
     }
 
-    /// View a `ServerBootstrap` as a `&[Uri]`
+    /// View a `ServerBootstrap` as a `&[Url]`
     #[must_use]
-    pub fn inner(&self) -> &[Uri] {
+    pub fn urls(&self) -> &[Url] {
         &self.0
     }
 
@@ -54,18 +52,18 @@ impl ServerBootstrap {
         self.0.clear();
     }
 
-    /// Append a `Uri`
+    /// Append a `Url`
     ///
     /// # Errors
     ///
-    /// Returns an `Err` if the Uri is missing a scheme, or if the scheme is not
+    /// Returns an `Err` if the Url is missing a scheme, or if the scheme is not
     /// either `wss` or `https`
-    pub fn append_uri(&mut self, uri: Uri) -> Result<(), Error> {
-        self.0.push(crate::uri::clean_uri(uri)?);
+    pub fn append_url(&mut self, url: Url) -> Result<(), Error> {
+        self.0.push(url);
         Ok(())
     }
 
-    /// Remove the `Uri` at the given index.
+    /// Remove the `Url` at the given index.
     /// If the index is beyond the end it will be a no-op.
     pub fn rm_index(&mut self, index: usize) {
         if index >= self.0.len() {
@@ -80,8 +78,8 @@ impl ServerBootstrap {
         use std::fmt::Write;
 
         let mut output: String = "S".to_string();
-        for uri in &self.0 {
-            let _ = write!(output, "\n{uri}");
+        for url in &self.0 {
+            let _ = write!(output, "\n{url}");
             let _ = output.pop(); // trailing slash must be removed
         }
         output
@@ -102,12 +100,11 @@ impl ServerBootstrap {
             return Err(InnerError::InvalidUserBootstrapString.into());
         }
 
-        let mut output: Vec<Uri> = vec![];
+        let mut output: Vec<Url> = vec![];
         #[allow(clippy::string_slice)]
         for part in s[2..].split('\n') {
-            let uri = part.parse::<Uri>()?;
-            let uri = crate::uri::clean_uri(uri)?;
-            output.push(uri);
+            let url = <Url as std::str::FromStr>::from_str(part)?;
+            output.push(url);
         }
 
         Ok(ServerBootstrap(output, seq))
