@@ -50,6 +50,18 @@ impl UserBootstrap {
         UserBootstrap(vec![], 0)
     }
 
+    /// Number of entries
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// If it is empty
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Build a `UserBootstrap` from a `Vec<(PublicKey, ServerUsage)>` and a sequence number
     /// Extraneous `Uri` data will be stripped
     #[must_use]
