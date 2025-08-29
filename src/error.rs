@@ -28,6 +28,9 @@ pub enum InnerError {
     /// Bad Encrypted Secret Key
     BadEncryptedSecretKey,
 
+    /// Bad Index
+    BadIndex,
+
     /// Bad Password
     BadPassword,
 
@@ -123,6 +126,9 @@ pub enum InnerError {
     /// Reference is not an ID
     NotAnId,
 
+    /// Not Found
+    NotFound,
+
     /// The bytes are padding
     Padding,
 
@@ -188,6 +194,7 @@ impl std::fmt::Display for InnerError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             InnerError::BadEncryptedSecretKey => write!(f, "Bad encrypted secret key"),
+            InnerError::BadIndex => write!(f, "Bad index"),
             InnerError::BadPassword => write!(f, "Bad password"),
             InnerError::BadScheme(s) => write!(f, "Unsupported URI scheme: {s}"),
             InnerError::DataTooLong => write!(f, "Data too long"),
@@ -226,6 +233,7 @@ impl std::fmt::Display for InnerError {
             InnerError::MissingScheme => write!(f, "Missing scheme"),
             InnerError::NotAnAddress => write!(f, "Reference is not an address"),
             InnerError::NotAnId => write!(f, "Reference is not an ID"),
+            InnerError::NotFound => write!(f, "Not found"),
             InnerError::Padding => write!(f, "The bytes are padding"),
             InnerError::ParseInt(e) => write!(f, "Parse integer error: {e}"),
             InnerError::RecordSectionLengthMismatch => write!(f, "Record section length mismatch"),

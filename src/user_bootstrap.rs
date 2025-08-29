@@ -57,10 +57,78 @@ impl UserBootstrap {
         UserBootstrap(v, seq)
     }
 
-    /// View a `UserBootstrap` as a `&[Uri]`
+    /// View a `UserBootstrap` as a `&[(ServerUsage, PublicKey)]`
     #[must_use]
     pub fn inner(&self) -> &[(ServerUsage, PublicKey)] {
         &self.0
+    }
+
+    /// Get the User's servers of the given `ServerUsage`
+    #[must_use]
+    pub fn get_server_pubkeys(&self, usage: ServerUsage) -> Vec<PublicKey> {
+        self.0
+            .iter()
+            .filter(|(u, _)| *u == usage)
+            .map(|(_, pk)| *pk)
+            .collect()
+    }
+
+    /// Get the User's servers of the given `ServerUsage`
+    pub fn remove_server(&mut self, removed_pk: PublicKey) {
+        self.0.retain(|(_, pk)| *pk != removed_pk);
+    }
+
+    /// Get the User's servers of the given `ServerUsage`
+    ///
+    /// # Errors
+    ///
+    /// If the index is beyond the end
+    pub fn add_server(
+        &mut self,
+        pk: PublicKey,
+        usage: ServerUsage,
+        priority: usize,
+    ) -> Result<(), Error> {
+        if priority > self.0.len() {
+            Err(InnerError::BadIndex.into())
+        } else {
+            self.0.insert(priority, (usage, pk));
+            Ok(())
+        }
+    }
+
+    /// Change a server priority
+    ///
+    /// # Errors
+    ///
+    /// If the server is not found
+    pub fn change_server_priority(&mut self, pk: PublicKey, priority: usize) -> Result<(), Error> {
+        if let Some(index) = self.0.iter().position(|(_, key)| *key == pk) {
+            let removed = self.0.remove(index);
+            self.0.insert(priority, removed);
+            Ok(())
+        } else {
+            Err(InnerError::NotFound.into())
+        }
+    }
+
+    /// Change a server usage
+    ///
+    /// # Errors
+    ///
+    /// If the server is not found
+    pub fn change_server_usage(
+        &mut self,
+        pk: PublicKey,
+        new_usage: ServerUsage,
+    ) -> Result<(), Error> {
+        for entry in &mut self.0 {
+            if pk == entry.1 {
+                entry.0 = new_usage;
+                return Ok(());
+            }
+        }
+        Err(InnerError::NotFound.into())
     }
 
     /// Current sequence number (increases with each write)
