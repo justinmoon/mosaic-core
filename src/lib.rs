@@ -85,6 +85,9 @@ pub use id::Id;
 mod signature;
 pub use signature::{EncryptedSecretKey, PublicKey, SecretKey};
 
+mod key_schedule;
+pub use key_schedule::{KeySchedule, KeyScheduleEntry, SubkeyMarker};
+
 mod kind;
 pub use kind::Kind;
 

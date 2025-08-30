@@ -24,6 +24,15 @@ pub const MAX_NANOSECONDS: i64 = i64::MAX;
 pub struct Timestamp(i64);
 
 impl Timestamp {
+    /// Timestamp that is all zeroes
+    pub const ZERO: Timestamp = Timestamp(0);
+
+    /// Minimum timestamp
+    pub const MIN: Timestamp = Timestamp(0);
+
+    /// Minimum timestamp
+    pub const MAX: Timestamp = Timestamp(MAX_NANOSECONDS);
+
     /// This creates a timestamp from a number of nanoseconds from the `UNIX_EPOCH`.
     ///
     /// # Errors
@@ -160,18 +169,6 @@ impl Timestamp {
             Ok(Timestamp(MAX_NANOSECONDS - n))
         }
     }
-
-    /// Minimum `Timestamp`
-    #[must_use]
-    pub fn min() -> Timestamp {
-        Timestamp(0)
-    }
-
-    /// Maximum `Timestamp`
-    #[must_use]
-    pub fn max() -> Timestamp {
-        Timestamp(MAX_NANOSECONDS)
-    }
 }
 
 // https://data.iana.org/time-zones/data/leap-seconds.list
@@ -244,7 +241,7 @@ impl Sub<Duration> for Timestamp {
         let rhs_nanos = rhs.as_nanos();
         #[allow(clippy::cast_sign_loss)]
         if rhs_nanos >= (self.0 as u128) {
-            Timestamp::min()
+            Timestamp::MIN
         } else {
             #[allow(clippy::cast_possible_truncation)]
             Timestamp(self.0 - rhs_nanos as i64)
@@ -259,7 +256,7 @@ impl Add<Duration> for Timestamp {
         let rhs_nanos = rhs.as_nanos();
         #[allow(clippy::cast_sign_loss)]
         if rhs_nanos + (self.0 as u128) > (i64::MAX as u128) {
-            Timestamp::max()
+            Timestamp::MAX
         } else {
             #[allow(clippy::cast_possible_truncation)]
             Timestamp(self.0 + rhs_nanos as i64)

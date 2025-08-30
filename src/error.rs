@@ -159,6 +159,9 @@ pub enum InnerError {
     /// Slice error
     SliceError(std::array::TryFromSliceError),
 
+    /// `SubkeyMarker` requires a `Timestamp`
+    SubkeyMarkerRequiresATimestamp,
+
     /// Time error
     SystemTime(std::time::SystemTimeError),
 
@@ -177,6 +180,9 @@ pub enum InnerError {
     /// Too many data elements
     TooManyDataElements(usize),
 
+    /// Undefined Subkey Marker
+    UndefinedSubkeyMarker(u16),
+
     /// Unknown filter element
     UnknownFilterElement(u8),
 
@@ -185,6 +191,9 @@ pub enum InnerError {
 
     /// UTF-8 error
     Utf8(std::str::Utf8Error),
+
+    /// Wrong Kind
+    WrongKind,
 
     /// Z32 error
     Z32(z32::Z32Error),
@@ -244,6 +253,9 @@ impl std::fmt::Display for InnerError {
             InnerError::ReservedSpaceUsed => write!(f, "Reserved space used"),
             InnerError::Scrypt(e) => write!(f, "Scrypt: {e}"),
             InnerError::SliceError(e) => write!(f, "Slice (size) error: {e}"),
+            InnerError::SubkeyMarkerRequiresATimestamp => {
+                write!(f, "SubkeyMarker requires a (non zero) Timestamp")
+            }
             InnerError::SystemTime(e) => write!(f, "Time Error: {e}"),
             InnerError::TagTooLong => write!(f, "Tag too long"),
             InnerError::TimeIsBeyondLeapSecondData => {
@@ -252,11 +264,13 @@ impl std::fmt::Display for InnerError {
             InnerError::TimeOutOfRange => write!(f, "Time is out of range"),
             InnerError::TimestampMismatch => write!(f, "Timestamp mismatch"),
             InnerError::TooManyDataElements(c) => write!(f, "Too many data elements. Max is {c}"),
+            InnerError::UndefinedSubkeyMarker(u) => write!(f, "Undefined Subkey Marker: {u}"),
             InnerError::UnknownFilterElement(u) => write!(f, "Unknown filter element: {u}"),
             InnerError::UnsupportedEncryptedSecretKeyVersion(v) => {
                 write!(f, "Unsupported Encrypted Secret Key Version: {v}")
             }
             InnerError::Utf8(e) => write!(f, "UTF-8 error: {e}"),
+            InnerError::WrongKind => write!(f, "Wrong kind"),
             InnerError::Z32(e) => write!(f, "zbase32 error: {e}"),
         }
     }
@@ -329,6 +343,26 @@ impl From<()> for Error {
     fn from((): ()) -> Self {
         Error {
             inner: InnerError::General("Error".to_owned()),
+            location: Location::caller(),
+        }
+    }
+}
+
+impl From<&str> for Error {
+    #[track_caller]
+    fn from(s: &str) -> Self {
+        Error {
+            inner: InnerError::General(s.to_owned()),
+            location: Location::caller(),
+        }
+    }
+}
+
+impl From<String> for Error {
+    #[track_caller]
+    fn from(s: String) -> Self {
+        Error {
+            inner: InnerError::General(s),
             location: Location::caller(),
         }
     }
