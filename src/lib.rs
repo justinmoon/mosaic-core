@@ -119,4 +119,4 @@ mod url;
 pub use url::Url;
 
 mod user_bootstrap;
-pub use user_bootstrap::UserBootstrap;
+pub use user_bootstrap::{ServerUsage, UserBootstrap};

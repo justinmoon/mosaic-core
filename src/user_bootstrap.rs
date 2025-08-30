@@ -16,17 +16,29 @@ pub struct ServerUsage(u8);
 bitflags! {
     /// Server Usages
     impl ServerUsage: u8 {
+        /// Server is used to publish content accessible to everybody
         const OUTBOX = 1<<0;
+
+        /// Server is used to receive content destined for yourself
         const INBOX = 1<<1;
+
+        /// Server is used for encrypted messaging
         const ENCRYPTION = 1<<2;
     }
 }
 
 impl ServerUsage {
+    /// Get as a printable byte
+    #[must_use]
     pub fn as_printable_byte(self) -> u8 {
         self.0 | 0b0011_0000
     }
 
+    /// Create from a printable byte
+    ///
+    /// Ignores bits that have no meaning
+    #[allow(clippy::missing_panics_doc)]
+    #[must_use]
     pub fn from_printable_byte(b: u8) -> ServerUsage {
         ServerUsage::from_bits(b & 0b111).unwrap()
     }
