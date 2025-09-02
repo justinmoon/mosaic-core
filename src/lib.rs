@@ -95,7 +95,9 @@ mod kind_flags;
 pub use kind_flags::{DuplicateHandling, KindFlags, ReadAccess};
 
 mod message;
-pub use message::{Message, MessageType, QueryClosedCode, QueryId, SubmissionResultCode};
+pub use message::{
+    HelloErrorCode, Message, MessageType, QueryClosedCode, QueryId, SubmissionResultCode,
+};
 
 mod record;
 pub use record::{

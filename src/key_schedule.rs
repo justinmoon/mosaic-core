@@ -86,6 +86,10 @@ pub struct KeyScheduleEntry {
 
 impl KeyScheduleEntry {
     /// Verify that the entry is valid
+    ///
+    /// # Errors
+    ///
+    /// Returns an `Err` if the subkey marker is undefined, or if a required timestamp is zero
     pub fn verify(&self) -> Result<(), Error> {
         if let SubkeyMarker::Undefined(u) = self.marker {
             Err(InnerError::UndefinedSubkeyMarker(u).into())
