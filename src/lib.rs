@@ -99,6 +99,9 @@ pub use message::{
     HelloErrorCode, Message, MessageType, QueryClosedCode, QueryId, SubmissionResultCode,
 };
 
+mod profile;
+pub use profile::Profile;
+
 mod record;
 pub use record::{
     OwnedRecord, Record, RecordAddressData, RecordFlags, RecordParts, RecordSigningData,

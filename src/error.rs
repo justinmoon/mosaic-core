@@ -37,6 +37,9 @@ pub enum InnerError {
     /// Unsupported URI scheme
     BadScheme(String),
 
+    /// CBOR cannot be decoded
+    CborDecode(Box<minicbor::decode::Error>),
+
     /// Data too long
     DataTooLong,
 
@@ -206,6 +209,7 @@ impl std::fmt::Display for InnerError {
             InnerError::BadIndex => write!(f, "Bad index"),
             InnerError::BadPassword => write!(f, "Bad password"),
             InnerError::BadScheme(s) => write!(f, "Unsupported URI scheme: {s}"),
+            InnerError::CborDecode(e) => write!(f, "CBOR can't be decoded: {e}"),
             InnerError::DataTooLong => write!(f, "Data too long"),
             InnerError::DhtPutError => write!(f, "DHT put error"),
             InnerError::DhtWasShutdown => write!(f, "DHT was shutdown"),
@@ -279,6 +283,7 @@ impl std::fmt::Display for InnerError {
 impl StdError for InnerError {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match self {
+            InnerError::CborDecode(e) => Some(e),
             InnerError::Ed25519(e) => Some(e),
             InnerError::IntTooBig(e) => Some(e),
             InnerError::InvalidUri(e) => Some(e),
@@ -373,6 +378,16 @@ impl From<std::num::TryFromIntError> for Error {
     fn from(e: std::num::TryFromIntError) -> Error {
         Error {
             inner: InnerError::IntTooBig(e),
+            location: Location::caller(),
+        }
+    }
+}
+
+impl From<minicbor::decode::Error> for Error {
+    #[track_caller]
+    fn from(e: minicbor::decode::Error) -> Error {
+        Error {
+            inner: InnerError::CborDecode(Box::new(e)),
             location: Location::caller(),
         }
     }
