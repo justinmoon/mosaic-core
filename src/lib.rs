@@ -94,10 +94,8 @@ pub use kind::Kind;
 mod kind_flags;
 pub use kind_flags::{DuplicateHandling, KindFlags, ReadAccess};
 
-mod message;
-pub use message::{
-    HelloErrorCode, Message, MessageType, QueryClosedCode, QueryId, SubmissionResultCode,
-};
+mod protocol;
+pub use protocol::{Message, MessageType, QueryId, ResultCode};
 
 mod profile;
 pub use profile::Profile;

@@ -224,8 +224,6 @@ impl KeySchedule {
 
 #[cfg(test)]
 mod test {
-    use super::*;
-
     #[test]
     fn test_key_schedule() {
         todo!();
