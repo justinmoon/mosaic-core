@@ -1,4 +1,4 @@
-use crate::{DalekSigningKey, DalekVerifyingKey};
+use crate::{Blake3, DalekSignature, DalekSigningKey, DalekVerifyingKey};
 use crate::{Error, InnerError};
 use rand::RngCore;
 #[cfg(feature = "serde")]
@@ -81,6 +81,29 @@ impl PublicKey {
             .try_into()
             .map_err(|_| InnerError::KeyLength.into_err())?;
         Self::from_bytes(&bytes)
+    }
+
+    /// Verify a signature on some data
+    /// This uses the 'Mosaic' context string.
+    ///
+    /// # Errors
+    ///
+    /// Returns an Err if the signature is not valid. It shouldn't happen, but
+    /// could also return a cryptographic or length error.
+    pub fn verify_signature(&self, data: &[u8], signature: &DalekSignature) -> Result<(), Error> {
+        let mut hasher = Blake3::new();
+        hasher.update(data);
+        self.verify_signature_with_hasher(hasher, signature)
+    }
+
+    pub(crate) fn verify_signature_with_hasher(
+        &self,
+        hasher: Blake3,
+        signature: &DalekSignature,
+    ) -> Result<(), Error> {
+        Ok(self
+            .to_verifying_key()
+            .verify_prehashed_strict(hasher, Some(b"Mosaic"), signature)?)
     }
 }
 
@@ -208,6 +231,27 @@ impl SecretKey {
             .try_into()
             .map_err(|_| InnerError::KeyLength.into_err())?;
         Ok(Self::from_bytes(&bytes))
+    }
+
+    /// Sign some data. This will hash the data first.
+    /// This uses the 'Mosaic' context string.
+    ///
+    /// # Errors
+    ///
+    /// Should not happen, but this could return a cryptographic or length error.
+    pub fn sign_data(&self, data: &[u8]) -> Result<DalekSignature, Error> {
+        let mut hasher = Blake3::new();
+        hasher.update(data);
+        self.sign_hasher(hasher)
+    }
+
+    pub(crate) fn sign_hasher(&self, hasher: Blake3) -> Result<DalekSignature, Error> {
+        if hasher.is_empty() {
+            return Err(InnerError::DataTooShort.into());
+        }
+        Ok(self
+            .to_signing_key()
+            .sign_prehashed(hasher, Some(b"Mosaic"))?)
     }
 }
 

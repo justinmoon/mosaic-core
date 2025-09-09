@@ -1,5 +1,5 @@
 use super::{LengthCharacteristic, MessageType, QueryId, ResultCode};
-use crate::{Error, Filter, Id, InnerError, PublicKey, Record, Reference};
+use crate::{Blake3, Error, Filter, Id, InnerError, PublicKey, Record, Reference};
 
 /// A protocol message
 // safety invariant: self.0 must always be at least 8 bytes long.
@@ -76,10 +76,10 @@ impl Message {
             }
             MessageType::BlobSubmission | MessageType::BlobResult => {
                 // Verify the hash
-                let mut hasher = blake3::Hasher::new();
-                let _ = hasher.update(&bytes[40..]);
-                let hash = hasher.finalize();
-                if hash.as_bytes().as_slice() != &bytes[8..40] {
+                let mut hasher = Blake3::new();
+                let mut hash: [u8; 32] = [0; 32];
+                hasher.hash(&bytes[40..], hash.as_mut_slice());
+                if hash.as_slice() != &bytes[8..40] {
                     return Err(InnerError::WrongLength.into());
                 }
             }
@@ -287,10 +287,8 @@ impl Message {
         bytes[0] = MessageType::BlobSubmission.to_u8();
         bytes[4..8].copy_from_slice((len as u32).to_le_bytes().as_slice());
 
-        let mut hasher = blake3::Hasher::new();
-        let _ = hasher.update(blob);
-        let hash = hasher.finalize();
-        bytes[8..40].copy_from_slice(hash.as_bytes().as_slice());
+        let mut hasher = Blake3::new();
+        hasher.hash(blob, &mut bytes[8..40]);
 
         bytes[40..len].copy_from_slice(blob);
 
@@ -422,10 +420,8 @@ impl Message {
         bytes[4..8].copy_from_slice((len as u32).to_le_bytes().as_slice());
         bytes[1] = result.to_u8();
 
-        let mut hasher = blake3::Hasher::new();
-        let _ = hasher.update(blob);
-        let hash = hasher.finalize();
-        bytes[8..40].copy_from_slice(hash.as_bytes().as_slice());
+        let mut hasher = Blake3::new();
+        hasher.hash(blob, &mut bytes[8..40]);
 
         bytes[40..len].copy_from_slice(blob);
 

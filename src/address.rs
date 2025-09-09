@@ -1,4 +1,4 @@
-use crate::{Error, InnerError, Kind, PublicKey, Reference};
+use crate::{Blake3, Error, InnerError, Kind, PublicKey, Reference};
 use rand::RngCore;
 #[cfg(feature = "serde")]
 use serde::{de::Visitor, Deserialize, Deserializer, Serialize, Serializer};
@@ -57,16 +57,18 @@ impl Address {
 
     /// Create a new Address with a deterministic nonce.
     ///
-    /// This uses the first 14 bytes of BLAKE3 taken on the deterministic
+    /// This uses the first 8 bytes of BLAKE3 taken on the deterministic
     /// key to generate the nonce.
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
     pub fn new_deterministic(author_public_key: PublicKey, kind: Kind, key: &[u8]) -> Address {
-        let mut truehash: [u8; 64] = [0; 64];
-        let mut hasher = blake3::Hasher::new();
-        let _ = hasher.update(key);
-        hasher.finalize_xof().fill(&mut truehash[..]);
-        Self::from_parts(author_public_key, kind, truehash[0..8].try_into().unwrap())
+        let mut bytes: [u8; 48] = [0; 48];
+        bytes[16..48].copy_from_slice(author_public_key.as_bytes().as_slice());
+        bytes[8..16].copy_from_slice(kind.to_bytes().as_slice());
+        let mut hasher = Blake3::new();
+        hasher.hash(key, &mut bytes[0..8]);
+        bytes[0] |= 1 << 7; // Turn on MSBit
+        Address(bytes)
     }
 
     /// Create an Address from parts

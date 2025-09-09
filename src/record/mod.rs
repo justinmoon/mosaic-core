@@ -1,4 +1,6 @@
-use crate::{Address, Error, Id, InnerError, Kind, PublicKey, SecretKey, TagSet, Timestamp};
+use crate::{
+    Address, Blake3, Error, Id, InnerError, Kind, PublicKey, SecretKey, TagSet, Timestamp,
+};
 use ed25519_dalek::Signature;
 use std::cmp::Ordering;
 use std::ops::{Deref, DerefMut, Range};
@@ -165,9 +167,11 @@ impl Record {
 
         // Compute the truehash
         let mut truehash: [u8; 64] = [0; 64];
-        let mut hasher = blake3::Hasher::new();
-        let _ = hasher.update(&buffer[hashable_range(tags_len, payload_len)]);
-        hasher.finalize_xof().fill(&mut truehash[..]);
+        let mut hasher = Blake3::new();
+        hasher.hash(
+            &buffer[hashable_range(tags_len, payload_len)],
+            truehash.as_mut_slice(),
+        );
 
         // Write ID
         buffer[ID_HASH_RANGE].copy_from_slice(&truehash[..40]);
@@ -175,12 +179,7 @@ impl Record {
 
         // Write the signature
         let sig = match parts.signing_data {
-            RecordSigningData::SecretKey(ref secret_key) => {
-                let digest = crate::hash::Blake3 { h: hasher };
-                secret_key
-                    .to_signing_key()
-                    .sign_prehashed(digest, Some(b"Mosaic"))?
-            }
+            RecordSigningData::SecretKey(ref secret_key) => secret_key.sign_hasher(hasher)?,
             RecordSigningData::PublicKeyAndSignature(_, signature) => signature,
         };
         buffer[sig_range_unpadded(tags_len, payload_len, 64)]
@@ -227,12 +226,12 @@ impl Record {
             PublicKey::from_bytes(self.0[ADDR_AUTHOR_KEY_RANGE].try_into().unwrap())?;
 
         // Compute the true hash
-        // (note we don't use fn full_hash() because we need to
-        //  reuse the hasher to verify the signature)
         let mut truehash: [u8; 64] = [0; 64];
-        let mut hasher = blake3::Hasher::new();
-        let _ = hasher.update(&self.0[hashable_range(tags_len, payload_len)]);
-        hasher.finalize_xof().fill(&mut truehash[..]);
+        let mut hasher = Blake3::new();
+        hasher.hash(
+            &self.0[hashable_range(tags_len, payload_len)],
+            truehash.as_mut_slice(),
+        );
 
         // Compare the start of the true hash to the claimed hash
         if truehash[..40] != self.0[ID_HASH_RANGE] {
@@ -249,10 +248,7 @@ impl Record {
         // Verify the signature
         let signature =
             Signature::from_slice(&self.0[sig_range_unpadded(tags_len, payload_len, 64)])?;
-        let digest = crate::hash::Blake3 { h: hasher };
-        signing_public_key
-            .to_verifying_key()
-            .verify_prehashed_strict(digest, Some(b"Mosaic"), &signature)?;
+        signing_public_key.verify_signature_with_hasher(hasher, &signature)?;
 
         // Verify reserved flags are 0
         let flags = self.flags();
@@ -293,10 +289,11 @@ impl Record {
     #[must_use]
     pub fn full_hash(&self) -> [u8; 64] {
         let mut truehash: [u8; 64] = [0; 64];
-        let mut hasher = blake3::Hasher::new();
-        let _ = hasher
-            .update(&self.0[hashable_range(self.tag_set_padded_len(), self.payload_padded_len())]);
-        hasher.finalize_xof().fill(&mut truehash[..]);
+        let mut hasher = Blake3::new();
+        hasher.hash(
+            &self.0[hashable_range(self.tag_set_padded_len(), self.payload_padded_len())],
+            truehash.as_mut_slice(),
+        );
         truehash
     }
 

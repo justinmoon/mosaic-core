@@ -60,6 +60,7 @@ macro_rules! padded_len {
     };
 }
 
+pub use ed25519_dalek::Signature as DalekSignature;
 pub use ed25519_dalek::SigningKey as DalekSigningKey;
 pub use ed25519_dalek::VerifyingKey as DalekVerifyingKey;
 pub use mainline;
@@ -78,6 +79,7 @@ pub use filter::{
 };
 
 mod hash;
+pub(crate) use hash::Blake3;
 
 mod id;
 pub use id::Id;
