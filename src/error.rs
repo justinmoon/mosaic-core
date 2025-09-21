@@ -37,8 +37,14 @@ pub enum InnerError {
     /// Unsupported URI scheme
     BadScheme(String),
 
+    /// CBOR cannot be decoded
+    CborDecode(Box<minicbor::decode::Error>),
+
     /// Data too long
     DataTooLong,
+
+    /// Data too short
+    DataTooShort,
 
     /// DHT put error
     DhtPutError,
@@ -93,6 +99,9 @@ pub enum InnerError {
 
     /// Invalid printable data
     InvalidPrintable,
+
+    /// Invalid result code
+    InvalidResultCode,
 
     /// Invalid `ServerBootstrap` String
     InvalidServerBootstrapString,
@@ -195,6 +204,9 @@ pub enum InnerError {
     /// Wrong Kind
     WrongKind,
 
+    /// Wrong Length
+    WrongLength,
+
     /// Z32 error
     Z32(z32::Z32Error),
 }
@@ -206,7 +218,9 @@ impl std::fmt::Display for InnerError {
             InnerError::BadIndex => write!(f, "Bad index"),
             InnerError::BadPassword => write!(f, "Bad password"),
             InnerError::BadScheme(s) => write!(f, "Unsupported URI scheme: {s}"),
+            InnerError::CborDecode(e) => write!(f, "CBOR can't be decoded: {e}"),
             InnerError::DataTooLong => write!(f, "Data too long"),
+            InnerError::DataTooShort => write!(f, "Data too short"),
             InnerError::DhtPutError => write!(f, "DHT put error"),
             InnerError::DhtWasShutdown => write!(f, "DHT was shutdown"),
             InnerError::Ed25519(e) => write!(f, "ed25519 Error: {e}"),
@@ -230,6 +244,7 @@ impl std::fmt::Display for InnerError {
             InnerError::InvalidLength => write!(f, "Invalid length"),
             InnerError::InvalidMessage => write!(f, "Invalid message"),
             InnerError::InvalidPrintable => write!(f, "Printable data is invalid"),
+            InnerError::InvalidResultCode => write!(f, "Invalid result code"),
             InnerError::InvalidServerBootstrapString => write!(f, "Invalid ServerBootstrap String"),
             InnerError::InvalidTag => write!(f, "Invalid Tag"),
             InnerError::InvalidUserBootstrapString => write!(f, "Invalid UserBootstrap String"),
@@ -271,6 +286,7 @@ impl std::fmt::Display for InnerError {
             }
             InnerError::Utf8(e) => write!(f, "UTF-8 error: {e}"),
             InnerError::WrongKind => write!(f, "Wrong kind"),
+            InnerError::WrongLength => write!(f, "Wrong length"),
             InnerError::Z32(e) => write!(f, "zbase32 error: {e}"),
         }
     }
@@ -279,6 +295,7 @@ impl std::fmt::Display for InnerError {
 impl StdError for InnerError {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match self {
+            InnerError::CborDecode(e) => Some(e),
             InnerError::Ed25519(e) => Some(e),
             InnerError::IntTooBig(e) => Some(e),
             InnerError::InvalidUri(e) => Some(e),
@@ -373,6 +390,16 @@ impl From<std::num::TryFromIntError> for Error {
     fn from(e: std::num::TryFromIntError) -> Error {
         Error {
             inner: InnerError::IntTooBig(e),
+            location: Location::caller(),
+        }
+    }
+}
+
+impl From<minicbor::decode::Error> for Error {
+    #[track_caller]
+    fn from(e: minicbor::decode::Error) -> Error {
+        Error {
+            inner: InnerError::CborDecode(Box::new(e)),
             location: Location::caller(),
         }
     }

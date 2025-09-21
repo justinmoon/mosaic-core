@@ -9,10 +9,34 @@ pub(crate) struct Blake3 {
     pub(crate) h: blake3::Hasher,
 }
 
+impl Blake3 {
+    /// Create a new Blake3 Hasher
+    pub(crate) fn new() -> Blake3 {
+        Blake3 {
+            h: blake3::Hasher::new(),
+        }
+    }
+
+    pub(crate) fn hash(&mut self, data: &[u8], out: &mut [u8]) {
+        let _ = self.h.reset();
+        let _ = self.h.update(data);
+        self.h.finalize_xof().fill(out);
+    }
+
+    /// Add data without finalizing
+    pub(crate) fn update(&mut self, data: &[u8]) {
+        let _ = self.h.update(data);
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.h.count() == 0
+    }
+}
+
 impl Update for Blake3 {
     #[inline]
     fn update(&mut self, data: &[u8]) {
-        let _ = self.h.update(data.as_ref());
+        let _ = self.h.update(data);
     }
 }
 

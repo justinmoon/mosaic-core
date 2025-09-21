@@ -138,7 +138,7 @@ impl KeySchedule {
         self.0
     }
 
-    /// Create a new `Record` based on this `KeySchedule`
+    /// Create a new `OwnedRecord` based on this `KeySchedule`
     ///
     /// # Errors
     ///
@@ -219,5 +219,14 @@ impl KeySchedule {
         }
 
         Ok(KeySchedule(entries))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    #[test]
+    fn test_key_schedule() {
+        todo!();
+        //let mut key_schedule = KeySchedule::new(vec![]);
     }
 }
