@@ -38,6 +38,9 @@ pub enum MessageType {
     /// Server response indicating the status of a submission
     SubmissionResult = 0x83,
 
+    /// Server closing notification
+    Closing = 0xFE,
+
     /// Unrecognized
     Unrecognized = 0xF0,
 
@@ -60,6 +63,7 @@ impl MessageType {
             0x81 => MessageType::LocallyComplete,
             0x82 => MessageType::QueryClosed,
             0x83 => MessageType::SubmissionResult,
+            0xFE => MessageType::Closing,
             0x90 => MessageType::HelloAck,
             0xF0 => MessageType::Unrecognized,
             u => MessageType::Undefined(u),
@@ -80,6 +84,7 @@ impl MessageType {
             Self::LocallyComplete => 0x81,
             Self::QueryClosed => 0x82,
             Self::SubmissionResult => 0x83,
+            Self::Closing => 0xFE,
             Self::HelloAck => 0x90,
             Self::Unrecognized => 0xF0,
             Self::Undefined(u) => u,
@@ -504,6 +509,14 @@ impl Message {
                             return Err(InnerError::InvalidMessage.into());
                         }
                     }
+                    MessageType::Closing => {
+                        if bytes.len() != 8 {
+                            return Err(InnerError::InvalidMessage.into());
+                        }
+                        if let ResultCode::Undefined(_) = ResultCode::from_u8(bytes[4]) {
+                            return Err(InnerError::InvalidMessage.into());
+                        }
+                    }
                     MessageType::Undefined(_) => {
                         return Err(InnerError::InvalidMessage.into());
                     }
@@ -588,6 +601,19 @@ impl Message {
             bytes[8 + i * 48..8 + (i + 1) * 48].copy_from_slice(r.as_bytes().as_slice());
         }
         Ok(Message(bytes))
+    }
+
+    /// Create a new `Closing` `Message`
+    #[must_use]
+    pub fn new_closing(code: ResultCode) -> Message {
+        let len = 8;
+        let mut bytes = vec![0_u8; len];
+        bytes[0] = MessageType::Closing.to_u8();
+        #[allow(clippy::cast_possible_truncation)]
+        let len_bytes = (len as u32).to_le_bytes();
+        bytes[1..4].copy_from_slice(&len_bytes.as_slice()[..3]);
+        bytes[4] = code.to_u8();
+        Message(bytes)
     }
 
     /// Create a new `Query` `Message`
@@ -870,6 +896,16 @@ impl Message {
     pub fn submission_result_code(&self) -> Option<SubmissionResultCode> {
         if self.message_type() == MessageType::SubmissionResult {
             Some(SubmissionResultCode::from_u8(self.0[4]))
+        } else {
+            None
+        }
+    }
+
+    /// Get the `ResultCode` of a `MessageType::Closing`
+    #[must_use]
+    pub fn closing_result_code(&self) -> Option<ResultCode> {
+        if self.message_type() == MessageType::Closing {
+            Some(ResultCode::from_u8(self.0[4]))
         } else {
             None
         }
