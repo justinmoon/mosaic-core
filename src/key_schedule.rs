@@ -225,6 +225,7 @@ impl KeySchedule {
 #[cfg(test)]
 mod test {
     #[test]
+    #[ignore = "temporarily skipped pending KeySchedule test implementation"]
     fn test_key_schedule() {
         todo!();
         //let mut key_schedule = KeySchedule::new(vec![]);
