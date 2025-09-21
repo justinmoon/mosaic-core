@@ -26,6 +26,9 @@ pub enum ResultCode {
     /// Rejected as the pubkey is not authorized for the action
     Unauthorized = 33,
 
+    /// Client and server do not share a compatible major version
+    IncompatibleVersion = 34,
+
     /// Request was invalid
     Invalid = 36,
 
@@ -75,6 +78,7 @@ impl ResultCode {
             16 => Self::NotFound,
             32 => Self::RequiresAuthentication,
             33 => Self::Unauthorized,
+            34 => Self::IncompatibleVersion,
             36 => Self::Invalid,
             37 => Self::TooOpen,
             38 => Self::TooLarge,
@@ -102,6 +106,7 @@ impl ResultCode {
             Self::NotFound => 16,
             Self::RequiresAuthentication => 32,
             Self::Unauthorized => 33,
+            Self::IncompatibleVersion => 34,
             Self::Invalid => 36,
             Self::TooOpen => 37,
             Self::TooLarge => 38,
