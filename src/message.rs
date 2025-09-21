@@ -267,8 +267,132 @@ pub enum HelloErrorCode {
     /// Unexpected Hello
     UnexpectedHello = 1,
 
+    /// Client and server do not share a compatible major version
+    IncompatibleMajorVersion = 2,
+
     /// Undefined
     Undefined(u8),
+}
+
+/// A general result code shared by multiple message types
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[repr(u8)]
+pub enum ResultCode {
+    /// Undefined
+    Undefined(u8) = 0,
+
+    /// Generic success
+    Success = 1,
+
+    /// Accepted a submission
+    Accepted = 2,
+
+    /// Duplicate
+    Duplicate = 3,
+
+    /// No consumers for an ephemeral record
+    NoConsumers = 4,
+
+    /// Requested resource not found
+    NotFound = 16,
+
+    /// Authentication required
+    RequiresAuthentication = 32,
+
+    /// Not authorized
+    Unauthorized = 33,
+
+    /// Request invalid
+    Invalid = 36,
+
+    /// Query/filter too open
+    TooOpen = 37,
+
+    /// Payload too large
+    TooLarge = 38,
+
+    /// Rate limited
+    TooFast = 39,
+
+    /// IP temporarily banned
+    IpTempBanned = 48,
+
+    /// IP permanently banned
+    IpPermBanned = 49,
+
+    /// Pubkey temporarily banned
+    PubkeyTempBanned = 50,
+
+    /// Pubkey permanently banned
+    PubkeyPermBanned = 51,
+
+    /// Server shutting down
+    ShuttingDown = 64,
+
+    /// Temporary server error
+    TemporaryError = 65,
+
+    /// Persistent server error
+    PersistentError = 66,
+
+    /// General server error
+    GeneralError = 67,
+}
+
+impl ResultCode {
+    /// Create a `ResultCode` from raw
+    #[must_use]
+    pub fn from_u8(u: u8) -> ResultCode {
+        match u {
+            1 => ResultCode::Success,
+            2 => ResultCode::Accepted,
+            3 => ResultCode::Duplicate,
+            4 => ResultCode::NoConsumers,
+            16 => ResultCode::NotFound,
+            32 => ResultCode::RequiresAuthentication,
+            33 => ResultCode::Unauthorized,
+            36 => ResultCode::Invalid,
+            37 => ResultCode::TooOpen,
+            38 => ResultCode::TooLarge,
+            39 => ResultCode::TooFast,
+            48 => ResultCode::IpTempBanned,
+            49 => ResultCode::IpPermBanned,
+            50 => ResultCode::PubkeyTempBanned,
+            51 => ResultCode::PubkeyPermBanned,
+            64 => ResultCode::ShuttingDown,
+            65 => ResultCode::TemporaryError,
+            66 => ResultCode::PersistentError,
+            67 => ResultCode::GeneralError,
+            u => ResultCode::Undefined(u),
+        }
+    }
+
+    /// Convert to raw
+    #[must_use]
+    pub fn to_u8(self) -> u8 {
+        match self {
+            ResultCode::Undefined(u) => u,
+            ResultCode::Success => 1,
+            ResultCode::Accepted => 2,
+            ResultCode::Duplicate => 3,
+            ResultCode::NoConsumers => 4,
+            ResultCode::NotFound => 16,
+            ResultCode::RequiresAuthentication => 32,
+            ResultCode::Unauthorized => 33,
+            ResultCode::Invalid => 36,
+            ResultCode::TooOpen => 37,
+            ResultCode::TooLarge => 38,
+            ResultCode::TooFast => 39,
+            ResultCode::IpTempBanned => 48,
+            ResultCode::IpPermBanned => 49,
+            ResultCode::PubkeyTempBanned => 50,
+            ResultCode::PubkeyPermBanned => 51,
+            ResultCode::ShuttingDown => 64,
+            ResultCode::TemporaryError => 65,
+            ResultCode::PersistentError => 66,
+            ResultCode::GeneralError => 67,
+        }
+    }
 }
 
 impl HelloErrorCode {
@@ -278,6 +402,7 @@ impl HelloErrorCode {
         match u {
             0 => HelloErrorCode::NoError,
             1 => HelloErrorCode::UnexpectedHello,
+            2 => HelloErrorCode::IncompatibleMajorVersion,
             u => HelloErrorCode::Undefined(u),
         }
     }
@@ -288,6 +413,7 @@ impl HelloErrorCode {
         match self {
             Self::NoError => 0,
             Self::UnexpectedHello => 1,
+            Self::IncompatibleMajorVersion => 2,
             Self::Undefined(u) => u,
         }
     }
